@@ -3,7 +3,7 @@ services:
   logistix:
     build: .
     ports:
-      - "47291:47291"
+      - "48432:48432"
     volumes:
       - logistix-data:/data
     environment:
