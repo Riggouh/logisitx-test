@@ -1,0 +1,17 @@
+{
+  "name": "logistix",
+  "version": "7.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
+    "watch": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "lit-html": "^3.2.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "terser": "^5.46.1"
+  }
+}
