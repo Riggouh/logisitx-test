@@ -1,4 +1,4 @@
-// LogistiX — Build UN6ABN — 2026-04-11 18:01
+// LogistiX — Build URFK4Q — 2026-04-11 20:01
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -5482,7 +5482,7 @@ function tick(){
         updateLiveElements();
         if(_compDirty){_compDirty=false;renComp()}
         // Auto-refresh logistics/fleet tabs for live ETA countdown
-        if(tc%3===0&&typeof compTab!=='undefined'&&(compTab==='logistics'||compTab==='fleet'))markCompDirty();
+        if(tc%3===0&&typeof compTab!=='undefined'&&(compTab==='logistics'||compTab==='fleet')&&!(document.activeElement&&(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT')))markCompDirty();
       } else {
         if(tc%5===0)ren();
       }
@@ -9068,20 +9068,25 @@ function compStatsHistory(el, append) {
 // ── Automation (keeps existing h+= implementation) ──
 function compAutomation(el, append) {
   if (!G) { render(html``, el); return; }
-  if (!G._autoSec) G._autoSec = {};
+  if (!G._autoSec) G._autoSec = {routes:true,standing:true};
+  if (G._autoSec.routes===undefined) G._autoSec.routes=true;
+  if (G._autoSec.standing===undefined) G._autoSec.standing=true;
   let h = '';
   // Routes section
   const on1 = G._autoSec.routes;
-  h += `<div class="row-click" onclick="G._autoSec.routes=!G._autoSec.routes;renComp()">
-    <span class="text-muted">${on1?'▼':'▶'}</span>
-    <span style="font-weight:600;font-size:12px;color:var(--bl)">🗺️ Routenplaner</span></div>`;
+  h += `<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="G._autoSec.routes=!G._autoSec.routes;renComp()">
+    <span style="color:var(--a2)">${on1?'▼':'▶'}</span>
+    <span style="font-weight:600;font-size:13px;color:var(--a2)">🗺️ Routenplaner</span></div>`;
   if (on1) h += '<div id="_autoRoutes"></div>';
   // Standing orders section
   const soCount = (G.standingOrders||[]).filter(s=>s.active).length;
+  const soTotal = (G.standingOrders||[]).length;
   const on2 = G._autoSec.standing;
-  h += `<div class="row-click" onclick="G._autoSec.standing=!G._autoSec.standing;renComp()">
-    <span class="text-muted">${on2?'▼':'▶'}</span>
-    <span style="font-weight:600;font-size:12px;color:var(--go)">🔄 Daueraufträge${soCount?` (${soCount})`:''}${G.standingOrders?.some(s=>s.active&&s.vehicleIds?.length===0)?' <span style="background:var(--r);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':''}</span></div>`;
+  const soWarn = G.standingOrders?.some(s=>s.active&&s.vehicleIds?.length===0);
+  h += `<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;margin:6px 0;background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.12);border-radius:6px" onclick="G._autoSec.standing=!G._autoSec.standing;renComp()">
+    <span style="color:var(--go)">${on2?'▼':'▶'}</span>
+    <span style="font-weight:600;font-size:13px;color:var(--go)">🔄 Daueraufträge</span>
+    <span class="sub" style="margin-left:auto;font-size:11px">${soCount} aktiv${soTotal>soCount?' · '+(soTotal-soCount)+' pausiert':''}${soWarn?' <span style="background:var(--r);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':''}</span></div>`;
   if (on2) h += '<div id="_autoStanding"></div>';
 
   const div = document.createElement('div');
@@ -9801,10 +9806,27 @@ function compRoutes(el){
   // ── Filter bar ──
   if(!G._rtFilter)G._rtFilter={from:'',to:'',num:''};
   var rf=G._rtFilter;
+  // Collect all destinations (player cities + order targets)
+  var destSet={};
+  cities.forEach(function(c2){destSet[c2.id]=c2.name});
+  G.vehs.forEach(function(v2){if(v2.st==='moving'&&v2.rt&&v2.rt.to){var tc2=Cx(v2.rt.to);if(tc2)destSet[v2.rt.to]=tc2.name||v2.rt.toName||v2.rt.to}});
+  // Collect order numbers
+  var orderNums=[];
+  G.orders.filter(function(o){return o.acc}).forEach(function(o){if(o.num)orderNums.push(o.num)});
+
   h+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">';
-  h+='<input class="sl" style="flex:1;min-width:100px;font-size:12px;padding:6px 8px" placeholder="📤 Herkunft" value="'+(rf.from||'')+'" oninput="G._rtFilter.from=this.value;renComp()"/>';
-  h+='<input class="sl" style="flex:1;min-width:100px;font-size:12px;padding:6px 8px" placeholder="🎯 Zielort" value="'+(rf.to||'')+'" oninput="G._rtFilter.to=this.value;renComp()"/>';
-  h+='<input class="sl" style="width:80px;font-size:12px;padding:6px 8px;font-family:var(--mono)" placeholder="#Nr" value="'+(rf.num||'')+'" oninput="G._rtFilter.num=this.value;renComp()"/>';
+  h+='<select class="sl" style="flex:1;min-width:100px;font-size:12px;padding:6px 8px" onchange="G._rtFilter.from=this.value;renComp()">';
+  h+='<option value="">📤 Alle Herkunft</option>';
+  cities.forEach(function(c2){h+='<option value="'+c2.id+'"'+(rf.from===c2.id?' selected':'')+'>📍 '+c2.name+'</option>'});
+  h+='</select>';
+  h+='<select class="sl" style="flex:1;min-width:100px;font-size:12px;padding:6px 8px" onchange="G._rtFilter.to=this.value;renComp()">';
+  h+='<option value="">🎯 Alle Ziele</option>';
+  Object.entries(destSet).sort(function(a,b){return a[1].localeCompare(b[1])}).forEach(function(e){h+='<option value="'+e[0]+'"'+(rf.to===e[0]?' selected':'')+'>'+e[1]+'</option>'});
+  h+='</select>';
+  h+='<select class="sl" style="width:90px;font-size:12px;padding:6px 8px;font-family:var(--mono)" onchange="G._rtFilter.num=this.value;renComp()">';
+  h+='<option value="">#Nr</option>';
+  orderNums.forEach(function(n){h+='<option value="'+n+'"'+(rf.num===String(n)?' selected':'')+'>#'+n+'</option>'});
+  h+='</select>';
   if(rf.from||rf.to||rf.num)h+='<button class="btn sm" onclick="G._rtFilter.from=\'\';G._rtFilter.to=\'\';G._rtFilter.num=\'\';renComp()">✕</button>';
   h+='</div>';
 
@@ -9819,24 +9841,20 @@ function compRoutes(el){
 
   // ── Build vehicle list ──
   var allVehs=[].concat(movingV).concat(idleV); // moving first
-  var fFrom=(rf.from||'').toLowerCase();
-  var fTo=(rf.to||'').toLowerCase();
-  var fNum=(rf.num||'').replace('#','');
+  var fFrom=rf.from||'';
+  var fTo=rf.to||'';
+  var fNum=rf.num||'';
 
   var filtered=allVehs.filter(function(v){
-    // Filter by origin
+    // Filter by origin (city ID)
     if(fFrom){
-      var fromName='';
-      if(v.st==='moving'&&v.rt)fromName=(C(v.rt.from)?.name||'').toLowerCase();
-      else fromName=(C(v.loc)?.name||v.loc||'').toLowerCase();
-      if(fromName.indexOf(fFrom)===-1)return false;
+      var fromId=v.st==='moving'&&v.rt?v.rt.from:v.loc;
+      if(fromId!==fFrom)return false;
     }
-    // Filter by destination
+    // Filter by destination (city ID)
     if(fTo){
-      var toName='';
-      if(v.st==='moving'&&v.rt)toName=(C(v.rt.to)?.name||v.rt.toName||'').toLowerCase();
-      else toName=(C(v.depot||v.loc)?.name||'').toLowerCase();
-      if(toName.indexOf(fTo)===-1)return false;
+      var toId=v.st==='moving'&&v.rt?v.rt.to:(v.depot||v.loc);
+      if(toId!==fTo)return false;
     }
     // Filter by order number
     if(fNum){
@@ -10322,10 +10340,10 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
     h+='<span>🚛 '+usedDepot+'/'+totalDepot+'</span></div>';
     // Collapsible Infra section
     const existing=G.infra[c.id]||[];const inf=infraText(c);
-    h+='<div style="cursor:pointer;display:flex;align-items:center;gap:4px;padding:4px 0;margin-bottom:6px;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd)" onclick="window._showInfra=!window._showInfra;renComp()">';
-    h+='<span class="text-muted">'+(window._showInfra?'▼':'▶')+'</span>';
-    h+='<span style="font-weight:600;font-size:11px">🏢 Infrastruktur</span>';
-    h+='<span class="sub" style="font-size:10px">'+existing.length+' gebaut'+(inf?' · '+inf:'')+'</span></div>';
+    h+='<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;margin:8px 0 6px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="window._showInfra=!window._showInfra;renComp()">';
+    h+='<span style="color:var(--a2)">'+(window._showInfra?'▼':'▶')+'</span>';
+    h+='<span style="font-weight:600;font-size:12px;color:var(--a2)">🏢 Infrastruktur</span>';
+    h+='<span class="sub" style="font-size:11px;margin-left:auto">'+existing.length+' gebaut'+(inf?' · '+inf:'')+'</span></div>';
     if(window._showInfra){
       const hasLagerUpg=existing.find(x=>x.type==='lager_upgrade');
       h+='<div style="margin-bottom:8px;padding:4px 0">';
@@ -10333,7 +10351,19 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
       if(!hasLagerUpg)h+='<button class="btn sm'+(G.money<8000?' off':'')+'" style="font-size:10px;margin-bottom:4px" onclick="buildInfra(\''+c.id+'\',\'lager_upgrade\')">📦 Lagererweiterung +200 · '+fmt(8000)+'</button>';
       const builtOther=existing.filter(x=>{const d2=INFRA[x.type];return d2&&!d2.storCap});
       builtOther.forEach(i2=>{const d2=INFRA[i2.type];if(!d2)return;
-        h+='<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px"><span>'+d2.em+' '+d2.name+'</span><span class="tg g" style="font-size:9px">✅</span></div>'});
+        h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(255,255,255,.03)"><span>'+d2.em+' '+d2.name+'</span>';
+        // Depot upgrade
+        if(i2.type==='depot'){
+          const dLvl=i2.depotLvl||0;const dCap=4+dLvl*2;const dUsed=G.vehs.filter(function(vv){return(vv.depot||vv.loc)===c.id}).length;
+          h+='<span style="display:flex;align-items:center;gap:4px"><span class="sub">'+dUsed+'/'+dCap+' Plätze</span>';
+          if(dLvl<2){const dCost=10000*(dLvl+1);
+            h+='<button class="btn sm'+(G.money<dCost?' off':'')+'" style="font-size:9px" onclick="upgradeDepot(\''+c.id+'\')">⬆ '+(dCap+2)+' Plätze · '+fmt(dCost)+'</button>';
+          } else h+='<span class="tg g" style="font-size:9px">MAX</span>';
+          h+='</span>';
+        } else {
+          h+='<span class="tg g" style="font-size:9px">✅</span>';
+        }
+        h+='</div>'});
       const availOther=Object.entries(INFRA).filter(([k,d2])=>!d2.storCap&&!existing.find(x=>x.type===k));
       availOther.forEach(([k,d2])=>{
         const blocked=(d2.req==='airport'&&!c.airport)||(d2.req==='harbor'&&!c.harbor);const dis=blocked||G.money<d2.price;
@@ -10882,16 +10912,27 @@ async function showProfile(viewUser){
 
   } else if(window._profTab==='goods'){
     // For own profile, compute all goods from history
+    try{
     var goodsData=data.topGoods;
     if(isOwn&&G&&G.history){
       var allGoods2={};(G.history||[]).forEach(function(h2){if(h2.good)allGoods2[h2.good]=(allGoods2[h2.good]||0)+(h2.amt||0)});
       goodsData=Object.entries(allGoods2).sort(function(a,b){return b[1]-a[1]});
     }
+    // Also show current stock if no history
+    if((!goodsData||!goodsData.length)&&isOwn&&G){
+      var curStock={};
+      cities.forEach(function(c2){var s2=G.stor[c2.id];if(!s2)return;Object.entries(s2).forEach(function(e){if(e[1]>0)curStock[e[0]]=(curStock[e[0]]||0)+e[1]})});
+      if(Object.keys(curStock).length){
+        goodsData=Object.entries(curStock).sort(function(a,b){return b[1]-a[1]});
+        h+=sub('📦 Aktueller Bestand (noch keine Lieferungen abgeschlossen)','text-align:center;padding:6px;color:var(--go);font-size:11px');
+      }
+    }
     if(!goodsData||!goodsData.length)h+=sub('Noch keine Waren gehandelt','text-align:center;padding:12px');
-    else{goodsData.forEach(function(pair,i){var g=pair[0],n=pair[1];var gd=GOODS[g];if(!gd)return;
+    else{goodsData.forEach(function(pair,i){var g2=pair[0],n2=pair[1];var gd2=GOODS[g2];if(!gd2)return;
       h+='<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03)"><span class="icon-cell">'+(i===0?'🥇':i===1?'🥈':i===2?'🥉':'')+'</span>';
-      h+='<span style="flex:1;font-size:13px">'+(gd.em||'')+' '+gd.name+'</span>';
-      h+='<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--a)">'+n.toLocaleString('de-DE')+'×</span></div>'});}
+      h+='<span style="flex:1;font-size:13px">'+(gd2.em||'')+' '+gd2.name+'</span>';
+      h+='<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--a)">'+n2.toLocaleString('de-DE')+'×</span></div>'});}
+    }catch(e){h+='<div class="sub" style="color:var(--r);padding:12px">Fehler: '+e.message+'</div>';console.error('Profile goods error:',e)}
 
   } else if(window._profTab==='ach'&&isOwn){
     const achList=data.achievements;
