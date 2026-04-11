@@ -1130,28 +1130,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </div>
 
-<script>(function(){
-  var _q=[];
-  var _r=false;
-  var _fns=['showAuth', 'doLogin', 'doRegister', 'doResetStep1', 'doResetStep2', 'doChangePass', 'doChangeEmail', 'togglePassVis', 'openComputer', 'closeComputer', 'toggleAdmin', 'toggleDuty', 'toggleHamburger', 'closeHamburger', 'openSettings', 'toggleView', 'toggleMinimap', 'renDash', 'openAlliancePanel', 'closeAlliancePanel', 'showLeaderboard', 'showProfile', 'showAchievements', 'showTutorial', 'showWiki', 'showChangelog', 'showDutyHelp', 'showExplorerUI', 'doLogout'];
-  function _wrap(name){
-    window[name]=function(){
-      var a=arguments;
-      if(_r&&typeof window['_lx_'+name]==='function'){window['_lx_'+name].apply(this,a);return;}
-      _q.push([name,a]);
-    };
-  }
-  _fns.forEach(_wrap);
-  document.addEventListener('lxReady',function(){
-    _r=true;
-    // Re-map with real functions
-    _fns.forEach(function(n){window['_lx_'+n]=window[n]});
-    _q.forEach(function(c){
-      if(typeof window[c[0]]==='function')window[c[0]].apply(null,c[1]);
-    });
-    _q=[];
-  });
-})();</script>
+<div id="buildStamp" style="position:fixed;bottom:8px;right:12px;font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.15);pointer-events:none;z-index:1">Build U420ZC · 2026-04-11 09:06</div>
 <script>(function(){
   if(window.storage) return;
   const BASE='/api/storage';
