@@ -1,4 +1,4 @@
-// LogistiX — Build U9MYGQ — 2026-04-11 11:42
+// LogistiX — Build UA8M2E — 2026-04-11 11:59
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -8772,7 +8772,7 @@ function compOrders(el, append) {
       : 0);
 
   const t = html`
-    <div class="dash-grid">
+    <div>
       ${acc.length ? html`
         <div class="sec-label">Angenommen (${acc.length})</div>
         ${acc.map(o => _orderCard(o, true))}
@@ -8796,31 +8796,48 @@ function _orderCard(o, accepted) {
   const isExpress = o.type === 'express';
   const border = isExpress ? 'border-left:3px solid var(--go)' :
                  o.type === 'special' ? 'border-left:3px solid #a855f7' : '';
+  const shipped = o.shipped || 0;
+  const delivered = o.delivered || 0;
+  const pct = o.amt ? Math.round(delivered / o.amt * 100) : 0;
+  const activeVehs = accepted ? getVehicles().filter(function(v2){return v2.cargo&&v2.cargo.oid===o.id&&v2.st==='moving'}) : [];
+  const dlLeft = accepted && o.deliverTl && o.accTick ? Math.max(0, o.deliverTl - (G.tick - o.accTick)) : 0;
+  const srcDist = o.srcDist ? o.srcDist + ' km' : '';
 
-  return html`
-    <div class="crd" style="${border}">
-      <div class="rw">
-        <span>${isExpress ? '⚡ ' : ''}${gd?.em || ''} <b>${o.amt}×</b> ${gd?.name || o.good}</span>
-        <span class="mono-val-bold">${fmt(o.rew)}</span>
-      </div>
-      <div class="rw" style="margin-top:2px">
-        <span class="sub">→ ${o.toName || o.to}</span>
-        <span class="sub">${accepted ? '✅ Zugewiesen' : `⏱ ${ftime(tlLeft)}`}</span>
-      </div>
-      ${!accepted ? html`
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <button class="btn sm" style="flex:1" onclick="accO('${o.id}');ren()">✅ Annehmen</button>
-          <button class="btn sm" onclick="declineO('${o.id}');ren()">✕</button>
-        </div>
-      ` : html`
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px">
-          ${(()=>{const v=getVehicles().find(v=>v.cargo?.oid===o.id);
-            return v ? html`<span class="sub">${v.type==='plane'?'✈️':v.type==='ship'?'🚢':v.type==='train'?'🚂':'🚛'} ${v.name||'Fahrzeug'} · ${Math.round((v.prog||0)/(v.tn||1)*100)}%</span>`
-                     : html`<span class="sub" style="color:var(--go)">⏳ Zuweisung ausstehend</span>`})()}
-          <button class="btn sm" style="color:var(--r);font-size:10px" onclick="if(confirm('Stornieren?')){cancelO('${o.id}');ren()}">✕ Stornieren</button>
-        </div>
-      `}
-    </div>`;
+  var h = '<div class="crd" style="' + border + '">';
+  h += '<div class="rw"><span>' + (isExpress ? '⚡ ' : '') + (gd?.em || '') + ' <b>' + o.amt + '×</b> ' + (gd?.name || o.good) + '</span>';
+  h += '<span class="mono-val-bold">' + fmt(o.rew) + '</span></div>';
+  h += '<div class="rw" style="margin-top:2px"><span class="sub">→ ' + (o.toName || o.to) + (srcDist ? ' · ' + srcDist : '') + '</span>';
+
+  if (!accepted) {
+    h += '<span class="sub">⏱ ' + ftime(tlLeft) + '</span></div>';
+    h += '<div style="display:flex;gap:6px;margin-top:6px">';
+    h += '<button class="btn sm" style="flex:1" onclick="accO(\'' + o.id + '\');ren()">✅ Annehmen</button>';
+    h += '<button class="btn sm" onclick="declineO(\'' + o.id + '\');ren()">✕</button></div>';
+  } else {
+    h += '<span class="sub">' + (activeVehs.length ? '🚛 ' + delivered + '/' + o.amt + ' (' + pct + '%)' : '⏳ Ausstehend') + '</span></div>';
+    // Progress bar
+    if (shipped > 0 || delivered > 0) {
+      h += '<div style="position:relative;height:4px;margin:4px 0;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden">';
+      h += '<div style="position:absolute;left:0;top:0;height:100%;width:' + pct + '%;background:var(--a);border-radius:2px"></div></div>';
+    }
+    // Deadline
+    if (dlLeft > 0) {
+      var dlPct = o.deliverTl ? Math.round((o.deliverTl - dlLeft) / o.deliverTl * 100) : 0;
+      h += '<div class="sub" style="font-size:10px;margin-top:2px">⏱ Frist: ' + ftime(dlLeft) + (dlPct > 70 ? ' <span style="color:var(--r)">⚠</span>' : '') + '</div>';
+    }
+    // Vehicles
+    h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">';
+    if (activeVehs.length) {
+      activeVehs.forEach(function(v) {
+        h += '<span class="sub" style="font-size:10px">' + (VT[v.type]?.em || '🚛') + ' ' + (typeof vehName === 'function' ? vehName(v) : v.type) + ' · ' + Math.round((v.prog || 0) / (v.tn || 1) * 100) + '%</span>';
+      });
+    }
+    h += '<button class="btn sm" style="flex:1" onclick="shAsgn(\'' + o.id + '\')">🚛 ' + (activeVehs.length ? 'Mehr zuweisen' : 'Zuweisen') + '</button>';
+    h += '<button class="btn sm" style="color:var(--r);font-size:10px" onclick="if(confirm(\'Stornieren?\')){cancelO(\'' + o.id + '\');ren()}">✕</button>';
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
 }
 
 // ── Finance (stub — delegates to compFinance for full logic) ──
