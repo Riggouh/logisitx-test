@@ -1,5 +1,4 @@
 const http=require('http'),fs=require('fs'),path=require('path');
-const PORT=process.env.PORT||48432;
 const DATA_DIR=process.env.DATA_DIR||'/data';
 const PERSONAL=path.join(DATA_DIR,'personal.json');
 const SHARED=path.join(DATA_DIR,'shared.json');
@@ -11,15 +10,17 @@ if(!fs.existsSync(PERSONAL))writeJSON(PERSONAL,{});
 if(!fs.existsSync(SHARED))writeJSON(SHARED,{});
 
 function handleStorage(req,res){
+  res.setHeader('Content-Type','application/json');
   const url=new URL(req.url,'http://localhost');
   const p=url.pathname;
-  res.setHeader('Content-Type','application/json');
+  // ── CORS headers ──
+  res.setHeader('Access-Control-Allow-Origin','*');
 
   if(p==='/api/storage'&&req.method==='GET'){
     const key=url.searchParams.get('key'),shared=url.searchParams.get('shared')==='true';
     const store=readJSON(shared?SHARED:PERSONAL);
     if(store[key]!==undefined)res.end(JSON.stringify({key,value:store[key],shared}));
-    else{res.statusCode=404;res.end(JSON.stringify({error:'not found'}))}
+    else res.end(JSON.stringify({key,value:null,shared}));
   }else if(p==='/api/storage'&&req.method==='POST'){
     let body='';let bodySize=0;req.on('data',c=>{bodySize+=c.length;if(bodySize>2097152){res.statusCode=413;res.end(JSON.stringify({error:'too large'}));req.destroy();return;}body+=c});req.on('end',()=>{
       try{
@@ -39,26 +40,23 @@ function handleStorage(req,res){
     const store=readJSON(shared?SHARED:PERSONAL);
     const keys=Object.keys(store).filter(k=>k.startsWith(prefix));
     res.end(JSON.stringify({keys,prefix,shared}));
-  }else return false;
-  return true;
+  }else{res.statusCode=404;res.end(JSON.stringify({error:'not found'}))}
 }
 
-const server=http.createServer((req,res)=>{
-  // Security headers
-  res.setHeader('X-Content-Type-Options','nosniff');
-  res.setHeader('X-Frame-Options','SAMEORIGIN');
-  res.setHeader('X-XSS-Protection','1; mode=block');
-  res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy',"default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src 'self' https: data: blob:; font-src 'self' https: data:;");
+const PORT=process.env.PORT||48432;
+const PUBLIC=path.join(__dirname,'public');
+const MIME={'.html':'text/html','.js':'application/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.ico':'image/x-icon','.svg':'image/svg+xml'};
+
+http.createServer((req,res)=>{
   if(req.url.startsWith('/api/'))return handleStorage(req,res);
   let file=req.url==='/'?'/index.html':req.url;
-  file=path.join(__dirname,'public',file);
-  const ext=path.extname(file);
-  const types={'.html':'text/html','.js':'application/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.ico':'image/x-icon'};
-  fs.readFile(file,(err,data)=>{
-    if(err){res.statusCode=404;res.end('Not found');return}
-    res.setHeader('Content-Type',types[ext]||'application/octet-stream');
+  const fp=path.join(PUBLIC,file);
+  if(!fp.startsWith(PUBLIC)){res.statusCode=403;res.end();return}
+  fs.readFile(fp,(err,data)=>{
+    if(err){res.statusCode=404;res.end('Not Found');return}
+    const ext=path.extname(fp);
+    res.setHeader('Content-Type',MIME[ext]||'application/octet-stream');
+    res.setHeader('Cache-Control','no-cache');
     res.end(data);
   });
-});
-server.listen(PORT,()=>console.log('LogistiX running on port '+PORT));
+}).listen(PORT,()=>console.log('LogistiX on :'+PORT));

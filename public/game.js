@@ -1,4 +1,4 @@
-// LogistiX — Build U9E4CQ — 2026-04-11 11:36
+// LogistiX — Build U9MYGQ — 2026-04-11 11:42
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -4847,8 +4847,8 @@ function tickCore(){
   }
 
   // ── Collect marketplace credits (every 5 min) ──
-  if(tc%300===0&&typeof _pmCollectCredits==='function')try{_pmCollectCredits()}catch(e){}
-  if(tc%300===0&&typeof allianceTick==='function')try{allianceTick()}catch(e){}
+  if(tc%300===0&&!window._lxCatchUp&&typeof _pmCollectCredits==='function')try{_pmCollectCredits()}catch(e){}
+  if(tc%300===0&&!window._lxCatchUp&&typeof allianceTick==='function')try{allianceTick()}catch(e){}
 
   // ── Stat Tracking (every 5 min) ──
   if(tc%300===0&&G){
