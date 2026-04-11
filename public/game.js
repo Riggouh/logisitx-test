@@ -1,4 +1,4 @@
-// LogistiX — Build UAY5OI — 2026-04-11 12:19
+// LogistiX — Build UIHX5O — 2026-04-11 15:50
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -2945,6 +2945,19 @@ function shAsgn(oid){if(!G)return;const o=findOrder(oid);if(!o)return;
       }
     }
   }
+  // ── Moving but available soon (returning, internal transfer, etc.) ──
+  var movingFree=G.vehs.filter(function(v){return v.st==='moving'&&!isSOBound(v)&&!v.maintQueued&&canVehTravel(v,o.to)&&(!v.cargo||!v.cargo.oid)&&!v.followUpOrder});
+  if(movingFree.length){
+    h+='<div class="sec-label" style="color:var(--go)">🔄 Unterwegs (bald verfügbar) · '+movingFree.length+'</div>';
+    movingFree.forEach(function(v){var vt=VT[v.type];var vLoc=C(v.loc);var eta=Math.max(0,(v.tn||0)-(v.prog||0));
+      var dest=v.rt?C(v.rt.to)||{name:v.rt.toName||'?'}:{name:'?'};
+      h+='<label class="crd" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 8px;border-color:rgba(251,191,36,.15)">';
+      h+='<input type="checkbox" data-vid="'+v.id+'" data-cap="'+vehCap(v)+'" data-type="remote" onchange="_asgnUpdate()" style="width:16px;height:16px;accent-color:var(--go)"/>';
+      h+='<div style="flex:1"><div class="rw"><span>'+vt.em+' '+vehName(v)+'</span><span class="sub">Kap: '+vehCap(v)+'</span></div>';
+      h+='<div class="sub" style="font-size:10px">🔄 → '+dest.name+' · ⏱ '+ftime(eta)+' · wird danach zugewiesen</div></div></label>';
+    });
+    anyVeh=true;
+  }
   if(!anyVeh){
     // Detailed diagnosis: WHY no vehicle?
     const allVehs=G.vehs;
@@ -3062,9 +3075,16 @@ function _asgnExec(){
 
 // Send remote vehicle to nearest stock city, then assign to order
 function _sendRemote(vid,oid){
-  const v=findVehicle(vid);if(!v||v.st!=='idle')return;
-  const o=findOrder(oid&&x.acc);if(!o)return;
+  const v=findVehicle(vid);if(!v)return;
+  const o=findOrder(oid);if(!o||!o.acc)return;
   const tgt=Cx(o.to);if(!tgt)return;
+  // Moving vehicle: set followUpOrder so it picks up after current trip
+  if(v.st==='moving'){
+    v.followUpOrder=oid;
+    addLog('🔄 '+vehName(v)+' wird nach aktueller Fahrt zugewiesen → '+fmtOrd(o.num));
+    return;
+  }
+  if(v.st!=='idle')return;
   // Find nearest city with stock
   const stockCities=cities.filter(c=>_availableForOrders(c.id,o.good)>0).sort((a,b)=>{
     const aH=_isHub(a.id,o.good)?0:1,bH=_isHub(b.id,o.good)?0:1;
@@ -3194,6 +3214,18 @@ function autoAssign(oid){
         addLog('🚛 '+vehName(v)+' → '+(dest.name||'?')+' (Abholung)');
         cap+=vehCap(v);
       }
+    }
+  }
+  // 3. If still not enough, assign moving vehicles (will pick up after current trip)
+  if(cap<remaining){
+    var movingFree=G.vehs.filter(function(v){return v.st==='moving'&&!isSOBound(v)&&!v.maintQueued&&!v.followUpOrder&&canVehTravel(v,o.to)&&(!v.cargo||!v.cargo.oid)});
+    movingFree.sort(function(a,b){return vehCap(b)-vehCap(a)});
+    for(var mi=0;mi<movingFree.length;mi++){
+      if(cap>=remaining)break;
+      var mv=movingFree[mi];
+      mv.followUpOrder=oid;
+      addLog('🔄 '+vehName(mv)+' wird nach Fahrt zugewiesen → '+fmtOrd(o.num));
+      cap+=vehCap(mv);
     }
   }
   if(!picks.length&&cap<=0){addLog('❌ Kein Fahrzeug verfügbar');if(typeof toast==='function')toast('❌ Kein Fahrzeug verfügbar','var(--r)');return}
@@ -7699,7 +7731,7 @@ function renComp(){
       if(invTab){const b=document.createElement('span');b.className='ctab-badge';b.style.cssText='font-size:9px;background:rgba(56,189,248,.2);color:var(--a2);padding:1px 4px;border-radius:6px;margin-left:3px';b.textContent='📋'+totalResCities;invTab.appendChild(b)}}
   }
   // Pulse hint on next-action tab for new players
-  if(G&&(!G.tutDone||(getDeliveries()||0)<5)){
+  if(G&&!G.tutDone&&(getDeliveries()||0)<5){
     const _ph=!G.vehs.length?'dealer':!Object.values(G.blds).flat().length?'buildings':G.orders.some(o=>o.acc&&(o.amt-(o.shipped||0))>0&&!G.vehs.find(v=>v.cargo?.oid===o.id&&v.st==='moving'))?'logistics':null;
     if(_ph){const pt=document.querySelector('.ctab[data-ct="'+_ph+'"]');if(pt&&compTab!==_ph)pt.classList.add('hint-pulse')}
   }
@@ -8734,27 +8766,23 @@ function compLogistics(el) {
   if (!G.logSub || !['orders','automation','stats','finance'].includes(G.logSub))
     G.logSub = 'orders';
 
-  const tabs = [['orders','📋 Aufträge'],['automation','🗺️ Routen'],
-                ['stats','📊 Statistik'],['finance','💰 Finanzen']];
-  const tabBar = _tabBar(tabs, G.logSub, id => { setLogSub(id); });
-
   if (G.logSub === 'automation') {
-    render(html`${tabBar}<div id="_autoRoutes"></div>`, el);
+    el.innerHTML = '<div id="_autoRoutes"></div>';
     compAutomation(el.querySelector('#_autoRoutes'), false);
     return;
   }
   if (G.logSub === 'finance') {
-    render(html`${tabBar}<div id="_finBody"></div>`, el);
+    el.innerHTML = '<div id="_finBody"></div>';
     compFinance(el.querySelector('#_finBody'), false);
     return;
   }
   if (G.logSub === 'stats') {
-    render(html`${tabBar}<div id="_statsBody"></div>`, el);
+    el.innerHTML = '<div id="_statsBody"></div>';
     compStatsHistory(el.querySelector('#_statsBody'), false);
     return;
   }
   G.orderSub = 'overview';
-  render(html`${tabBar}<div id="_ordBody"></div>`, el);
+  el.innerHTML = '<div id="_ordBody"></div>';
   compOrders(el.querySelector('#_ordBody'), false);
 }
 
@@ -8790,50 +8818,132 @@ function compOrders(el, append) {
 }
 
 function _orderCard(o, accepted) {
-  const gd = GOODS[o.good];
-  const age = G.tick - (o.born || 0);
-  const tlLeft = Math.max(0, (o.tl || 600) - age);
-  const isExpress = o.type === 'express';
-  const border = isExpress ? 'border-left:3px solid var(--go)' :
-                 o.type === 'special' ? 'border-left:3px solid #a855f7' : '';
-  const shipped = o.shipped || 0;
-  const delivered = o.delivered || 0;
-  const pct = o.amt ? Math.round(delivered / o.amt * 100) : 0;
-  const activeVehs = accepted ? getVehicles().filter(function(v2){return v2.cargo&&v2.cargo.oid===o.id&&v2.st==='moving'}) : [];
-  const dlLeft = accepted && o.deliverTl && o.accTick ? Math.max(0, o.deliverTl - (G.tick - o.accTick)) : 0;
-  const srcDist = o.srcDist ? o.srcDist + ' km' : '';
+  var gd = GOODS[o.good];
+  var age = G.tick - (o.born || 0);
+  var tlLeft = Math.max(0, (o.tl || 600) - age);
+  var isExpress = o.type === 'express';
+  var isSpecial = o.type === 'special';
+  var border = isExpress ? 'border-left:3px solid var(--go)' :
+               isSpecial ? 'border-left:3px solid #a855f7' : '';
+  var shipped = o.shipped || 0;
+  var delivered = o.delivered || 0;
+  var remaining = o.amt - delivered;
+  var pct = o.amt ? Math.round(delivered / o.amt * 100) : 0;
+  var activeVehs = accepted ? getVehicles().filter(function(v2){return v2.cargo&&v2.cargo.oid===o.id&&v2.st==='moving'}) : [];
+  var dlLeft = accepted && o.deliverTl && o.accTick ? Math.max(0, o.deliverTl - (G.tick - o.accTick)) : 0;
+  var dlPct = (accepted && o.deliverTl) ? Math.round((G.tick - (o.accTick||0)) / o.deliverTl * 100) : 0;
 
   var h = '<div class="crd" style="' + border + '">';
-  h += '<div class="rw"><span>' + (isExpress ? '⚡ ' : '') + (gd?.em || '') + ' <b>' + o.amt + '×</b> ' + (gd?.name || o.good) + '</span>';
+
+  // ── Row 1: Good + Amount + Price ──
+  h += '<div class="rw"><span>' + (isExpress ? '⚡ ' : '') + (gd?.em || '') + ' <b>' + o.amt + '\u00d7 ' + (gd?.name || o.good) + '</b></span>';
   h += '<span class="mono-val-bold">' + fmt(o.rew) + '</span></div>';
-  h += '<div class="rw" style="margin-top:2px"><span class="sub">→ ' + (o.toName || o.to) + (srcDist ? ' · ' + srcDist : '') + '</span>';
+
+  // ── Row 2: Destination + source info ──
+  h += '<div class="rw" style="margin-top:2px"><span class="sub">';
+  h += '\u2192 ' + (o.toName || o.to);
+  if (!accepted && o.srcCity) {
+    h += ' \u00b7 \ud83d\udccd ' + o.srcCity;
+    var srcStock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
+    if (srcStock > 0) h += ' (' + srcStock + '\u00d7)';
+  }
+  if (o.srcDist) h += ' \u00b7 ' + o.srcDist + ' km';
+  // Estimate travel time for open orders
+  if (!accepted && o.srcDist && G.vehs.length) {
+    var bestSpd = 0;
+    G.vehs.forEach(function(v2) { var vt = VT[v2.type]; if (vt && vt.spd > bestSpd) bestSpd = vt.spd; });
+    if (bestSpd > 0) h += ' \u00b7 \u23f1~' + ftime(Math.round(o.srcDist / bestSpd * 3600));
+  }
+  h += '</span>';
+  if (!accepted) {
+    h += '<span class="sub">\u23f1 ' + ftime(tlLeft) + '</span>';
+  } else {
+    h += '<span class="sub">\ud83d\ude9b ' + delivered + '/' + o.amt + ' (' + pct + '%)</span>';
+  }
+  h += '</div>';
 
   if (!accepted) {
-    h += '<span class="sub">⏱ ' + ftime(tlLeft) + '</span></div>';
+    // ── Open order: Info line + Buttons ──
+    var ppu = o.pricePerUnit || Math.round(o.rew / o.amt);
+    var mktRef = o.mktRef || 0;
+    var mktPct = mktRef > 0 ? Math.round((ppu - mktRef) / mktRef * 100) : 0;
+    var oStock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
+    var oFreeVehs = 0;
+    G.vehs.forEach(function(v2) {
+      if (!isSOBound(v2) && !v2.maintQueued && canVehTravel(v2, o.to)) {
+        if (v2.st === 'idle') oFreeVehs++;
+      }
+    });
+
+    h += '<div class="sub" style="font-size:10px;margin-top:2px">';
+    h += fmt(ppu) + '/St.';
+    if (mktPct !== 0) h += ' <span style="color:' + (mktPct > 0 ? 'var(--a)' : 'var(--r)') + '">' + (mktPct > 0 ? '+' : '') + mktPct + '%</span>';
+    h += ' \u00b7 \ud83d\ude9b ' + oStock + ' vorr\u00e4tig';
+    h += ' \u00b7 \ud83d\ude9a ' + oFreeVehs;
+    h += '</div>';
+
     h += '<div style="display:flex;gap:6px;margin-top:6px">';
-    h += '<button class="btn sm" style="flex:1" onclick="accO(\'' + o.id + '\');ren()">✅ Annehmen</button>';
-    h += '<button class="btn sm" onclick="declineO(\'' + o.id + '\');ren()">✕</button></div>';
+    h += '<button class="btn sm" style="flex:1;background:rgba(61,214,140,.1);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="accO(\'' + o.id + '\');ren()">Annehmen</button>';
+    h += '<button class="btn sm" style="color:var(--r)" onclick="declineO(\'' + o.id + '\');ren()">\u2715 Ablehnen</button>';
+    h += '</div>';
   } else {
-    h += '<span class="sub">' + (activeVehs.length ? '🚛 ' + delivered + '/' + o.amt + ' (' + pct + '%)' : '⏳ Ausstehend') + '</span></div>';
+    // ── Accepted order: Full detail view ──
+
+    // Info line: progress, remaining, stock
+    var stock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px">';
+    h += '<span style="color:var(--a)">\u2611 ' + delivered + '/' + o.amt + '</span>';
+    h += '<span class="sub">\ud83d\ude9b ' + remaining + ' verbleibend \u00b7 ' + stock + '\u00d7 vorr\u00e4tig</span>';
+    h += '</div>';
+
     // Progress bar
-    if (shipped > 0 || delivered > 0) {
-      h += '<div style="position:relative;height:4px;margin:4px 0;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden">';
-      h += '<div style="position:absolute;left:0;top:0;height:100%;width:' + pct + '%;background:var(--a);border-radius:2px"></div></div>';
-    }
+    h += '<div style="position:relative;height:4px;margin:4px 0;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden">';
+    if (pct > 0) h += '<div style="position:absolute;left:0;top:0;height:100%;width:' + pct + '%;background:var(--a);border-radius:2px"></div>';
+    h += '</div>';
+
     // Deadline
     if (dlLeft > 0) {
-      var dlPct = o.deliverTl ? Math.round((o.deliverTl - dlLeft) / o.deliverTl * 100) : 0;
-      h += '<div class="sub" style="font-size:10px;margin-top:2px">⏱ Frist: ' + ftime(dlLeft) + (dlPct > 70 ? ' <span style="color:var(--r)">⚠</span>' : '') + '</div>';
+      h += '<div class="sub" style="font-size:10px">\u23f1 Frist: ' + ftime(dlLeft);
+      if (dlPct > 70) h += ' <span style="color:var(--r)">\u26a0</span>';
+      h += '</div>';
     }
-    // Vehicles
-    h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">';
+
+    // Active vehicles with ETA
     if (activeVehs.length) {
+      h += '<div style="margin-top:4px">';
       activeVehs.forEach(function(v) {
-        h += '<span class="sub" style="font-size:10px">' + (VT[v.type]?.em || '🚛') + ' ' + (typeof vehName === 'function' ? vehName(v) : v.type) + ' · ' + Math.round((v.prog || 0) / (v.tn || 1) * 100) + '%</span>';
+        var vPct = Math.round((v.prog || 0) / (v.tn || 1) * 100);
+        var eta = Math.max(0, (v.tn || 0) - (v.prog || 0));
+        h += '<div class="sub" style="font-size:10px;display:flex;justify-content:space-between">';
+        h += '<span>' + (VT[v.type]?.em || '\ud83d\ude9b') + ' ' + (typeof vehName === 'function' ? vehName(v) : v.type) + ' \u00b7 ' + (v.cargo?.amt || 0) + '\u00d7</span>';
+        h += '<span>' + vPct + '% \u00b7 \u23f1 ' + ftime(eta) + '</span>';
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+
+    // ── Button bar: Senden | Zuweisen | Details | Stornieren ──
+    var tgt = typeof Cx === 'function' ? Cx(o.to) : null;
+    var freeVehs = 0;
+    var soonVehs = 0;
+    if (tgt) {
+      getVehicles().forEach(function(v2) {
+        if (v2.maintQueued || isSOBound(v2)) return;
+        if (!canVehTravel(v2, o.to)) return;
+        if (v2.st === 'idle') { freeVehs++; return; }
+        // Moving but not on a delivery order — will be free soon
+        if (v2.st === 'moving' && (!v2.cargo || !v2.cargo.oid) && !v2.followUpOrder) soonVehs++;
       });
     }
-    h += '<button class="btn sm" style="flex:1" onclick="shAsgn(\'' + o.id + '\')">🚛 ' + (activeVehs.length ? 'Mehr zuweisen' : 'Zuweisen') + '</button>';
-    h += '<button class="btn sm" style="color:var(--r);font-size:10px" onclick="if(confirm(\'Stornieren?\')){cancelO(\'' + o.id + '\');ren()}">✕</button>';
+    var penAge = o.accTick ? (G.tick - o.accTick) : 0;
+    var penPctC = o.deliverTl ? Math.min(penAge / o.deliverTl, 1) : 0;
+    var penalty = Math.floor((o.origRew || o.rew) * (PENALTY_BASE + penPctC * PENALTY_SCALE));
+
+    h += '<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">';
+    h += '<button class="btn sm" style="flex:1;background:rgba(61,214,140,.1);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">\u26a1 Senden' + (freeVehs || soonVehs ? ' (\ud83d\ude9b' + freeVehs + (soonVehs ? '+' + soonVehs : '') + ')' : '') + '</button>';
+    h += '<button class="btn sm" style="flex:1" onclick="shAsgn(\'' + o.id + '\')">\ud83d\ude9b Zuweisen</button>';
+    h += '<button class="btn sm" onclick="shAsgn(\'' + o.id + '\')">\ud83d\udcca Details</button>';
+    h += '<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.06)" onclick="if(confirm(\'Stornieren? Strafe: \u2212' + fmt(penalty) + '\')){cancelO(\'' + o.id + '\');ren()}">Stornieren (\u2212' + fmt(penalty) + ')</button>';
     h += '</div>';
   }
   h += '</div>';
