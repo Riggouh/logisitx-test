@@ -1,4 +1,4 @@
-// LogistiX — Build UIHX5O — 2026-04-11 15:50
+// LogistiX — Build UJPA2Z — 2026-04-11 16:24
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -2859,7 +2859,7 @@ function setPostDelivery(vid,cid){
 function setFollowUpOrder(vid,oid){
   if(!G)return;const v=findVehicle(vid);if(!v)return;
   if(!oid){v.followUpOrder=null;ua();return}
-  const o=findOrder(oid&&x.acc);if(!o)return;
+  const o=findOrder(oid);if(!o||!o.acc)return;
   v.followUpOrder=oid;v.postDelivery=null;
   const tc=Cx(o.to);
   addLog('📋 Folgeauftrag: '+(GOODS[o.good]?.em||'')+' → '+(tc?.name||''));ua();
@@ -3217,6 +3217,7 @@ function autoAssign(oid){
     }
   }
   // 3. If still not enough, assign moving vehicles (will pick up after current trip)
+  var approachCount = 0;
   if(cap<remaining){
     var movingFree=G.vehs.filter(function(v){return v.st==='moving'&&!isSOBound(v)&&!v.maintQueued&&!v.followUpOrder&&canVehTravel(v,o.to)&&(!v.cargo||!v.cargo.oid)});
     movingFree.sort(function(a,b){return vehCap(b)-vehCap(a)});
@@ -3224,14 +3225,24 @@ function autoAssign(oid){
       if(cap>=remaining)break;
       var mv=movingFree[mi];
       mv.followUpOrder=oid;
-      addLog('🔄 '+vehName(mv)+' wird nach Fahrt zugewiesen → '+fmtOrd(o.num));
       cap+=vehCap(mv);
+      approachCount++;
     }
   }
+  // Count remote idle vehicles that were sent (step 2 set followUpOrder)
+  var remoteCount = G.vehs.filter(function(v){return v.followUpOrder===oid&&v.st==='moving'&&v.cargo&&!v.cargo.oid}).length;
+  var totalApproach = approachCount + remoteCount;
+
   if(!picks.length&&cap<=0){addLog('❌ Kein Fahrzeug verfügbar');if(typeof toast==='function')toast('❌ Kein Fahrzeug verfügbar','var(--r)');return}
-  if(picks.length)_doMultiAssign(o,picks);
+  if(picks.length)_doMultiAssign(o,picks,totalApproach);
+  else if(totalApproach>0){
+    // Only approach vehicles, no direct loads
+    addLog('🔄 '+totalApproach+' Fzg auf Anfahrt für '+fmtOrd(o.num));
+    if(typeof toast==='function')toast('🔄 '+totalApproach+' Fzg auf Anfahrt','var(--a2)');
+    ua();
+  }
 }
-function _doMultiAssign(o,vids){
+function _doMultiAssign(o,vids,extraApproach){
   if(!o.shipped)o.shipped=0;
   const startShipped=o.shipped;
   let totalLoaded=0,vehCount=0;
@@ -3251,11 +3262,18 @@ function _doMultiAssign(o,vids){
     if(typeof ensureRoute==='function')ensureRoute(v);
   });
   o.shipped+=totalLoaded;
-  if(totalLoaded>0){
-    const t=Cx(o.to);
-    addLog('🚀 '+vehCount+'× · '+totalLoaded+'× '+(GOODS[o.good]?.em||'')+' → '+(t?.name||''));
-    if(typeof toast==='function')toast('🚀 '+vehCount+' Fzg losgeschickt!','var(--a)');
-  } else addLog('❌ Nichts geladen');if(typeof toast==='function')toast('❌ Nichts geladen','var(--r)');
+  var approach = extraApproach||0;
+  if(totalLoaded>0||approach>0){
+    var t2=Cx(o.to);
+    var msg='🚀 ';
+    if(vehCount)msg+=vehCount+' Fzg · '+totalLoaded+'× '+(GOODS[o.good]?.em||'')+' → '+(t2?.name||'');
+    if(approach)msg+=(vehCount?' · ':'')+'🔄 '+approach+' auf Anfahrt';
+    addLog(msg);
+    if(typeof toast==='function')toast(msg,'var(--a)');
+  } else {
+    addLog('⚠️ Kein Bestand am Fahrzeug-Standort');
+    if(typeof toast==='function')toast('⚠️ Kein Bestand — Waren erst produzieren oder transferieren','var(--go)');
+  }
   ua();
 }
 function goCity(id){sr.classList.remove('open');si.value='';sel(id)}
@@ -5327,8 +5345,8 @@ function _tickVehicles(){
         }
         // Follow-up order
         if(v.followUpOrder){
-          const fuo=findOrder(v.followUpOrder&&x.acc);
-          if(fuo){
+          const fuo=findOrder(v.followUpOrder);
+          if(fuo&&fuo.acc){
             // Load from vehicle's current city (destination-based: fuo.from may be null)
             const lc=v.loc;
             const fbs=G.blds[lc]||[];
@@ -5369,6 +5387,24 @@ function _tickVehicles(){
         } else if(v.st==='idle'&&v.queue&&v.queue.length){
           v.queue.shift();
           if(v.queue.length&&typeof startNextRoute==='function')startNextRoute(v);
+        }
+        // Auto-return to nearest player city after order delivery
+        if(v.st==='idle'&&_arrCargo&&_arrCargo.oid&&!v.followUpOrder&&!v.postDelivery){
+          // Already at a player city? Stay (update depot)
+          if(cities.find(function(c2){return c2.id===v.loc})){
+            v.depot=v.loc; // Update home depot to current city
+          } else {
+            // Find nearest player city
+            var here2=Cx(v.loc)||{lat:0,lng:0};
+            var nearDep=null,nearDist=Infinity;
+            cities.forEach(function(c2){var d2=hav(here2.lat,here2.lng,c2.lat,c2.lng);if(d2<nearDist&&canVehTravel(v,c2.id)){nearDist=d2;nearDep=c2}});
+            if(nearDep){
+              v.st='moving';v.rt={from:v.loc,to:nearDep.id};v.prog=0;
+              v.depot=nearDep.id;
+              if(typeof ensureRoute==='function')ensureRoute(v);
+              continue;
+            }
+          }
         }
         // Auto-return: if idle at a city we don't own, go to nearest owned city
         if(v.st==='idle'&&!cities.find(c2=>c2.id===v.loc)){
@@ -8823,133 +8859,132 @@ function _orderCard(o, accepted) {
   var tlLeft = Math.max(0, (o.tl || 600) - age);
   var isExpress = o.type === 'express';
   var isSpecial = o.type === 'special';
-  var border = isExpress ? 'border-left:3px solid var(--go)' :
-               isSpecial ? 'border-left:3px solid #a855f7' : '';
+  var borderClr = isExpress ? 'var(--go)' : isSpecial ? '#a855f7' : 'var(--bd)';
   var shipped = o.shipped || 0;
   var delivered = o.delivered || 0;
   var remaining = o.amt - delivered;
   var pct = o.amt ? Math.round(delivered / o.amt * 100) : 0;
-  var activeVehs = accepted ? getVehicles().filter(function(v2){return v2.cargo&&v2.cargo.oid===o.id&&v2.st==='moving'}) : [];
-  var dlLeft = accepted && o.deliverTl && o.accTick ? Math.max(0, o.deliverTl - (G.tick - o.accTick)) : 0;
-  var dlPct = (accepted && o.deliverTl) ? Math.round((G.tick - (o.accTick||0)) / o.deliverTl * 100) : 0;
+  var sep = '<div style="border-top:1px solid rgba(255,255,255,.06);margin:0"></div>';
 
-  var h = '<div class="crd" style="' + border + '">';
+  var h = '<div class="crd" style="border-color:' + borderClr + ';padding:0;overflow:hidden">';
 
-  // ── Row 1: Good + Amount + Price ──
-  h += '<div class="rw"><span>' + (isExpress ? '⚡ ' : '') + (gd?.em || '') + ' <b>' + o.amt + '\u00d7 ' + (gd?.name || o.good) + '</b></span>';
-  h += '<span class="mono-val-bold">' + fmt(o.rew) + '</span></div>';
-
-  // ── Row 2: Destination + source info ──
-  h += '<div class="rw" style="margin-top:2px"><span class="sub">';
-  h += '\u2192 ' + (o.toName || o.to);
-  if (!accepted && o.srcCity) {
-    h += ' \u00b7 \ud83d\udccd ' + o.srcCity;
-    var srcStock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
-    if (srcStock > 0) h += ' (' + srcStock + '\u00d7)';
-  }
-  if (o.srcDist) h += ' \u00b7 ' + o.srcDist + ' km';
-  // Estimate travel time for open orders
-  if (!accepted && o.srcDist && G.vehs.length) {
-    var bestSpd = 0;
-    G.vehs.forEach(function(v2) { var vt = VT[v2.type]; if (vt && vt.spd > bestSpd) bestSpd = vt.spd; });
-    if (bestSpd > 0) h += ' \u00b7 \u23f1~' + ftime(Math.round(o.srcDist / bestSpd * 3600));
-  }
+  // ═══ HEADER ═══
+  h += '<div style="padding:8px 10px;background:rgba(255,255,255,.02)">';
+  h += '<div class="rw"><span style="font-weight:700">' + (o.num ? '<span style="font-family:var(--mono);font-size:10px;opacity:.5">#' + o.num + '</span> ' : '') + (isExpress ? '<span style="color:var(--go)">⚡</span> ' : '') + (gd?.em || '') + ' ' + o.amt + '× ' + (gd?.name || o.good) + '</span>';
+  h += '<span style="font-family:var(--mono);font-weight:700;color:var(--a)">' + fmt(o.rew) + '</span></div>';
+  h += '<div class="rw" style="margin-top:2px"><span class="sub">→ ' + (o.toName || o.to);
+  if (o.srcDist) h += ' · ' + o.srcDist + ' km';
   h += '</span>';
   if (!accepted) {
-    h += '<span class="sub">\u23f1 ' + ftime(tlLeft) + '</span>';
+    h += '<span class="sub">⏱ ' + ftime(tlLeft) + '</span>';
   } else {
-    h += '<span class="sub">\ud83d\ude9b ' + delivered + '/' + o.amt + ' (' + pct + '%)</span>';
+    h += '<span style="font-family:var(--mono);font-size:11px;color:' + (pct > 0 ? 'var(--a)' : 'var(--td)') + '">' + delivered + '/' + o.amt + ' (' + pct + '%)</span>';
   }
-  h += '</div>';
+  h += '</div></div>';
 
   if (!accepted) {
-    // ── Open order: Info line + Buttons ──
+    // ═══ OPEN ORDER ═══
     var ppu = o.pricePerUnit || Math.round(o.rew / o.amt);
     var mktRef = o.mktRef || 0;
     var mktPct = mktRef > 0 ? Math.round((ppu - mktRef) / mktRef * 100) : 0;
     var oStock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
     var oFreeVehs = 0;
     G.vehs.forEach(function(v2) {
-      if (!isSOBound(v2) && !v2.maintQueued && canVehTravel(v2, o.to)) {
-        if (v2.st === 'idle') oFreeVehs++;
-      }
+      if (!isSOBound(v2) && !v2.maintQueued && canVehTravel(v2, o.to) && v2.st === 'idle') oFreeVehs++;
     });
-
-    h += '<div class="sub" style="font-size:10px;margin-top:2px">';
-    h += fmt(ppu) + '/St.';
-    if (mktPct !== 0) h += ' <span style="color:' + (mktPct > 0 ? 'var(--a)' : 'var(--r)') + '">' + (mktPct > 0 ? '+' : '') + mktPct + '%</span>';
-    h += ' \u00b7 \ud83d\ude9b ' + oStock + ' vorr\u00e4tig';
-    h += ' \u00b7 \ud83d\ude9a ' + oFreeVehs;
-    h += '</div>';
-
-    h += '<div style="display:flex;gap:6px;margin-top:6px">';
-    h += '<button class="btn sm" style="flex:1;background:rgba(61,214,140,.1);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="accO(\'' + o.id + '\');ren()">Annehmen</button>';
-    h += '<button class="btn sm" style="color:var(--r)" onclick="declineO(\'' + o.id + '\');ren()">\u2715 Ablehnen</button>';
-    h += '</div>';
-  } else {
-    // ── Accepted order: Full detail view ──
-
-    // Info line: progress, remaining, stock
-    var stock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
-    h += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px">';
-    h += '<span style="color:var(--a)">\u2611 ' + delivered + '/' + o.amt + '</span>';
-    h += '<span class="sub">\ud83d\ude9b ' + remaining + ' verbleibend \u00b7 ' + stock + '\u00d7 vorr\u00e4tig</span>';
-    h += '</div>';
-
-    // Progress bar
-    h += '<div style="position:relative;height:4px;margin:4px 0;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden">';
-    if (pct > 0) h += '<div style="position:absolute;left:0;top:0;height:100%;width:' + pct + '%;background:var(--a);border-radius:2px"></div>';
-    h += '</div>';
-
-    // Deadline
-    if (dlLeft > 0) {
-      h += '<div class="sub" style="font-size:10px">\u23f1 Frist: ' + ftime(dlLeft);
-      if (dlPct > 70) h += ' <span style="color:var(--r)">\u26a0</span>';
-      h += '</div>';
+    var estTime = '';
+    if (o.srcDist && G.vehs.length) {
+      var bestSpd = 0;
+      G.vehs.forEach(function(v2) { var vt = VT[v2.type]; if (vt && vt.spd > bestSpd) bestSpd = vt.spd; });
+      if (bestSpd > 0) estTime = '~' + ftime(Math.round(o.srcDist / bestSpd * 3600));
     }
 
-    // Active vehicles with ETA
-    if (activeVehs.length) {
-      h += '<div style="margin-top:4px">';
+    h += '<div style="padding:4px 10px 6px;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;color:var(--td)">';
+    h += '<span>' + fmt(ppu) + '/St.';
+    if (mktPct !== 0) h += ' <span style="color:' + (mktPct > 0 ? 'var(--a)' : 'var(--r)') + '">' + (mktPct > 0 ? '+' : '') + mktPct + '%</span>';
+    h += '</span>';
+    if (o.srcCity) h += '<span>📍' + o.srcCity + '</span>';
+    h += '<span>📦' + oStock + '</span>';
+    h += '<span>🚚' + oFreeVehs + '</span>';
+    if (estTime) h += '<span>⏱' + estTime + '</span>';
+    h += '</div>';
+
+    h += '<div style="padding:2px 10px 8px;display:flex;gap:6px">';
+    h += '<button class="btn sm" style="flex:1;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="accO(\'' + o.id + '\');ren()">Annehmen</button>';
+    h += '<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.2)" onclick="declineO(\'' + o.id + '\');ren()">✕ Ablehnen</button>';
+    h += '</div>';
+
+  } else {
+    // ═══ ACCEPTED ORDER ═══
+    var stock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
+    var dlLeft = o.deliverTl && o.accTick ? Math.max(0, o.deliverTl - (G.tick - o.accTick)) : 0;
+    var dlPct = o.deliverTl ? Math.round((G.tick - (o.accTick||0)) / o.deliverTl * 100) : 0;
+    var activeVehs = getVehicles().filter(function(v2){return v2.cargo&&v2.cargo.oid===o.id&&v2.st==='moving'});
+    var approachVehs = getVehicles().filter(function(v2){return v2.followUpOrder===o.id});
+
+    // ── Status ──
+    h += '<div style="padding:6px 10px">';
+    h += '<div style="display:flex;gap:10px;font-size:11px">';
+    h += '<span style="color:var(--a)">☑ ' + delivered + '/' + o.amt + '</span>';
+    h += '<span class="sub">🚛 ' + remaining + ' offen · ' + stock + '× vorrätig</span>';
+    h += '</div>';
+    h += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+    h += '<div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
+    if (pct > 0) h += '<div style="height:100%;width:' + pct + '%;background:var(--a);border-radius:3px"></div>';
+    h += '</div>';
+    h += '<span style="font-size:10px;font-family:var(--mono);color:var(--td);min-width:28px;text-align:right">' + pct + '%</span></div>';
+    if (dlLeft > 0) {
+      h += '<div class="sub" style="font-size:10px;margin-top:3px">⏱ Frist: ' + ftime(dlLeft);
+      if (dlPct > 70) h += ' <span style="color:var(--r)">⚠️</span>';
+      h += '</div>';
+    }
+    h += '</div>';
+
+    // ── Fahrzeuge ──
+    if (activeVehs.length || approachVehs.length) {
+      h += sep;
+      h += '<div style="padding:4px 10px">';
       activeVehs.forEach(function(v) {
         var vPct = Math.round((v.prog || 0) / (v.tn || 1) * 100);
         var eta = Math.max(0, (v.tn || 0) - (v.prog || 0));
-        h += '<div class="sub" style="font-size:10px;display:flex;justify-content:space-between">';
-        h += '<span>' + (VT[v.type]?.em || '\ud83d\ude9b') + ' ' + (typeof vehName === 'function' ? vehName(v) : v.type) + ' \u00b7 ' + (v.cargo?.amt || 0) + '\u00d7</span>';
-        h += '<span>' + vPct + '% \u00b7 \u23f1 ' + ftime(eta) + '</span>';
-        h += '</div>';
+        h += '<div style="display:flex;justify-content:space-between;font-size:10px;padding:1px 0">';
+        h += '<span style="color:var(--a)">🚛 ' + (VT[v.type]?.em || '') + ' ' + (typeof vehName==='function'?vehName(v):v.type) + ' · ' + (v.cargo?.amt||0) + '×</span>';
+        h += '<span style="color:var(--td)">' + vPct + '% · ⏱' + ftime(eta) + '</span></div>';
+      });
+      approachVehs.forEach(function(v) {
+        var eta = Math.max(0, (v.tn || 0) - (v.prog || 0));
+        h += '<div style="display:flex;justify-content:space-between;font-size:10px;padding:1px 0;color:var(--go)">';
+        h += '<span>🔄 ' + (VT[v.type]?.em || '') + ' ' + (typeof vehName==='function'?vehName(v):v.type) + ' · Anfahrt</span>';
+        h += '<span>⏱' + ftime(eta) + '</span></div>';
       });
       h += '</div>';
     }
 
-    // ── Button bar: Senden | Zuweisen | Details | Stornieren ──
+    // ── Buttons ──
     var tgt = typeof Cx === 'function' ? Cx(o.to) : null;
-    var freeVehs = 0;
-    var soonVehs = 0;
+    var freeV = 0, soonV = 0;
     if (tgt) {
       getVehicles().forEach(function(v2) {
-        if (v2.maintQueued || isSOBound(v2)) return;
-        if (!canVehTravel(v2, o.to)) return;
-        if (v2.st === 'idle') { freeVehs++; return; }
-        // Moving but not on a delivery order — will be free soon
-        if (v2.st === 'moving' && (!v2.cargo || !v2.cargo.oid) && !v2.followUpOrder) soonVehs++;
+        if (v2.maintQueued || isSOBound(v2) || !canVehTravel(v2, o.to)) return;
+        if (v2.st === 'idle') { freeV++; return; }
+        if (v2.st === 'moving' && (!v2.cargo || !v2.cargo.oid) && !v2.followUpOrder) soonV++;
       });
     }
     var penAge = o.accTick ? (G.tick - o.accTick) : 0;
     var penPctC = o.deliverTl ? Math.min(penAge / o.deliverTl, 1) : 0;
     var penalty = Math.floor((o.origRew || o.rew) * (PENALTY_BASE + penPctC * PENALTY_SCALE));
 
-    h += '<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">';
-    h += '<button class="btn sm" style="flex:1;background:rgba(61,214,140,.1);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">\u26a1 Senden' + (freeVehs || soonVehs ? ' (\ud83d\ude9b' + freeVehs + (soonVehs ? '+' + soonVehs : '') + ')' : '') + '</button>';
-    h += '<button class="btn sm" style="flex:1" onclick="shAsgn(\'' + o.id + '\')">\ud83d\ude9b Zuweisen</button>';
-    h += '<button class="btn sm" onclick="shAsgn(\'' + o.id + '\')">\ud83d\udcca Details</button>';
-    h += '<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.06)" onclick="if(confirm(\'Stornieren? Strafe: \u2212' + fmt(penalty) + '\')){cancelO(\'' + o.id + '\');ren()}">Stornieren (\u2212' + fmt(penalty) + ')</button>';
+    h += sep;
+    h += '<div style="padding:4px 10px 8px;display:flex;gap:4px;flex-wrap:wrap">';
+    h += '<button class="btn sm" style="flex:2;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">⚡ Senden' + (freeV||soonV ? ' (🚛'+freeV+(soonV?'+'+soonV:'')+')':'') + '</button>';
+    h += '<button class="btn sm" style="flex:2" onclick="shAsgn(\'' + o.id + '\')">🚛 Zuweisen</button>';
+    h += '<button class="btn sm" style="flex:0;min-width:36px" onclick="showOrderDetail(\'' + o.id + '\')">📊</button>';
+    h += '<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.04);white-space:nowrap" onclick="if(confirm(\'Storno? −' + fmt(penalty) + '\')){cancelO(\'' + o.id + '\');ren()}">−' + fmt(penalty) + '</button>';
     h += '</div>';
   }
   h += '</div>';
   return h;
 }
-
 // ── Finance (stub — delegates to compFinance for full logic) ──
 function compFinance(el, append) {
   let h = '';
@@ -9042,8 +9077,98 @@ function compAutomation(el, append) {
   render(unsafeHTML(h), div);
   if (append) el.appendChild(div);
   else { el.innerHTML = ''; el.appendChild(div); }
+
+  // Populate inner sections after DOM is ready
+  if (on1) { const rEl = document.getElementById('_autoRoutes'); if (rEl && typeof compRoutes === 'function') compRoutes(rEl); }
+  if (on2) { const sEl = document.getElementById('_autoStanding'); if (sEl && typeof compStanding === 'function') compStanding(sEl); }
 }
 function _logisticsFinLog() { if (typeof compFinance === 'function') { const el = document.querySelector('.comp-body'); if (el) compFinance(el, false); } }
+
+// ── Order Detail Popup ──
+function showOrderDetail(oid) {
+  if (!G) return;
+  var o = findOrder(oid);
+  if (!o) return;
+  var gd = GOODS[o.good];
+  var tgt = typeof Cx === 'function' ? Cx(o.to) : null;
+  var ppu = o.pricePerUnit || Math.round(o.rew / o.amt);
+  var mktRef = o.mktRef || 0;
+  var delivered = o.delivered || 0;
+  var shipped = o.shipped || 0;
+  var openAmt = o.amt - delivered;
+  var dlLeft = o.deliverTl && o.accTick ? Math.max(0, o.deliverTl - (G.tick - o.accTick)) : 0;
+
+  var h = '<div style="text-align:center;margin-bottom:12px">';
+  h += '<span style="font-size:28px">' + (gd?.em || '📦') + '</span>';
+  h += '<div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--a);margin-top:4px">Auftrag #' + (o.num || '?') + '</div>';
+  h += '</div>';
+
+  // Ware + Preis
+  h += '<div class="crd"><div class="rw"><span>' + (gd?.em || '') + ' <b>' + o.amt + '× ' + (gd?.name || o.good) + '</b></span>';
+  h += '<span class="mono-val-bold">' + fmt(o.rew) + '</span></div>';
+  h += '<div class="sub" style="margin-top:2px">' + fmt(ppu) + '/Stk';
+  if (mktRef > 0) h += ' · Marktref: ' + fmt(mktRef);
+  h += '</div></div>';
+
+  // Ziel
+  h += '<div class="crd"><div style="font-weight:600;font-size:12px;margin-bottom:4px">🏢 Ziel</div>';
+  h += '<div class="sub">→ ' + (o.toName || o.to) + (tgt ? ' ' + (tgt.co || '') : '') + '</div>';
+  if (o.srcDist) h += '<div class="sub">Entfernung: ' + o.srcDist + ' km</div>';
+  h += '</div>';
+
+  // Fortschritt
+  h += '<div class="crd"><div style="font-weight:600;font-size:12px;margin-bottom:4px">📊 Fortschritt</div>';
+  h += '<div class="rw"><span class="sub">☑ ' + delivered + ' geliefert</span><span class="sub">🚛 ' + openAmt + ' offen</span></div>';
+  if (shipped > delivered) h += '<div class="sub">📦 ' + (shipped - delivered) + ' unterwegs</div>';
+  // Progress bar
+  var pct = o.amt ? Math.round(delivered / o.amt * 100) : 0;
+  h += '<div style="position:relative;height:4px;margin:6px 0;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden">';
+  h += '<div style="position:absolute;left:0;top:0;height:100%;width:' + pct + '%;background:var(--a);border-radius:2px"></div></div>';
+  if (dlLeft > 0) h += '<div class="sub">🚛 Lieferzeit: ' + ftime(dlLeft) + ' verbleibend</div>';
+  h += '</div>';
+
+  // Fahrzeuge
+  var activeV = getVehicles().filter(function(v) { return v.cargo && v.cargo.oid === oid && v.st === 'moving'; });
+  var approachV = getVehicles().filter(function(v) { return v.followUpOrder === oid; });
+  if (activeV.length || approachV.length) {
+    h += '<div class="crd"><div style="font-weight:600;font-size:12px;margin-bottom:4px">🚛 Fahrzeuge</div>';
+    activeV.forEach(function(v) {
+      var vPct = Math.round((v.prog || 0) / (v.tn || 1) * 100);
+      var eta = Math.max(0, (v.tn || 0) - (v.prog || 0));
+      h += '<div class="rw" style="font-size:11px"><span>' + (VT[v.type]?.em || '') + ' ' + vehName(v) + ' · ' + (v.cargo?.amt || 0) + '×</span>';
+      h += '<span>' + vPct + '% · ⏱ ' + ftime(eta) + '</span></div>';
+    });
+    approachV.forEach(function(v) {
+      var eta = Math.max(0, (v.tn || 0) - (v.prog || 0));
+      h += '<div class="rw" style="font-size:11px;color:var(--go)"><span>🔄 ' + (VT[v.type]?.em || '') + ' ' + vehName(v) + ' · auf Anfahrt</span>';
+      h += '<span>⏱ ' + ftime(eta) + '</span></div>';
+    });
+    h += '</div>';
+  }
+
+  // Zeitverlauf
+  h += '<div class="crd"><div style="font-weight:600;font-size:12px;margin-bottom:4px">🕐 Zeitverlauf</div>';
+  if (o.bornTs) {
+    var created = new Date(o.bornTs);
+    h += '<div class="rw" style="font-size:11px"><span class="sub">Erstellt</span><span>' + created.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</span></div>';
+  }
+  if (o.accTs) {
+    var accepted = new Date(o.accTs);
+    var ago = Math.round((Date.now() - o.accTs) / 60000);
+    h += '<div class="rw" style="font-size:11px"><span class="sub">Angenommen</span><span>' + accepted.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + ' (vor ' + (ago >= 60 ? Math.floor(ago/60) + 'h ' + (ago%60) + 'min' : ago + 'min') + ')</span></div>';
+  }
+  if (o.firstShipTs) {
+    var firstShip = new Date(o.firstShipTs);
+    h += '<div class="rw" style="font-size:11px"><span class="sub">Erster Versand</span><span>' + firstShip.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</span></div>';
+  } else {
+    h += '<div class="rw" style="font-size:11px"><span class="sub">Erster Versand</span><span>—</span></div>';
+  }
+  h += '</div>';
+
+  h += '<button class="btn full" onclick="closePopup(\'orderDetailPopup\')">Schließen</button>';
+  createPopup('orderDetailPopup', h, {maxWidth: '400px'});
+}
+window.showOrderDetail = showOrderDetail;
 
 
 // ── src/js/ui/inventory.js ──
@@ -9838,7 +9963,7 @@ function compStanding(el){
     const vids=so.vehicleIds||(so.vehicleId?[so.vehicleId]:[]);
     const paused=!so.active;const autoPaused=so.autoPaused;
     const activeVehs=G.vehs.filter(v=>v.st==='moving'&&v.cargo?.internal&&v.rt?.from===so.from&&v.rt?.to===so.to);
-    const idleAssigned=vids.map(vid=>findVehicle(vid&&v.st==='idle')).filter(Boolean);
+    const idleAssigned=vids.map(vid=>findVehicle(vid)).filter(Boolean);
     // City storage only (building localStor has separate caps)
     const destCap=cityCap(so.to);const destUsed=sumObj(G.stor[so.to]||{});
     h+='<div class="crd" style="border-left:3px solid '+(paused?(autoPaused?'var(--go)':'var(--td)'):'var(--a)')+'">';
@@ -12881,26 +13006,17 @@ function adminAddMoney(){
 async function adminGivePlayerMoney(userKey){if(!adminAuthed){console.warn('Admin action blocked: not authenticated');return;}
   
   const amt=_adminActUI.getPlayerMoney();if(!amt)return;
-  const msg='';
-  // Always modify save + send signal (works for logged in AND out)
-  try{
-    const raw=await storeGet('lx_save_'+userKey);
-    if(raw){
-      const d=JSON.parse(raw);
-      d.money=(d.money||0)+amt;
-      d._adminModified=Date.now();
-      await storeSet('lx_save_'+userKey,JSON.stringify(d));
-    }
-  }catch(e){}
-  // Always set message signal with signature for validation
+  const msg=document.getElementById('adminPlayerMsg')?.value||'';
+  // Set message signal with signature — _checkAdminMsg will credit the money
   const _ts=Date.now();
   const _sig=(_adminHash?_adminHash.hash.substring(0,8):'')+'_'+_ts;
   try{await storeSet('lx_adminmsg_'+userKey,JSON.stringify({amt,msg,ts:_ts,sig:_sig}),true)}catch(e){}
-  try{await storeSet('lx_reload_'+userKey,Date.now().toString(),true)}catch(e){}
-  // If it's the current user, also apply immediately
+  // If it's the current user, process immediately (skip signal polling delay)
   if(userKey===currentUser&&G){
     addMoney(amt);finLog('admin',amt,'Admin: '+(msg||'Geld erhalten'));uhud();save();
     _showAdminMoneyPopup(amt,msg);
+    // Delete signal so _checkAdminMsg doesn't double-credit
+    try{await storeDel('lx_adminmsg_'+userKey,true)}catch(e){}
   }
   adminLog('admin','💰 +'+fmt(amt)+' an '+userKey+(msg?' ('+msg+')':''));
   if(typeof toast==='function')toast('💰 +'+fmt(amt)+' an '+userKey);
@@ -12911,27 +13027,18 @@ async function adminGivePlayerMoney(userKey){if(!adminAuthed){console.warn('Admi
 async function adminGiveAllMoney(){if(!adminAuthed){console.warn('Admin action blocked: not authenticated');return;}
   
   const amt=_adminActUI.getAllMoney();if(!amt)return;
-  const msg='';
+  const msg=document.getElementById('adminAllMsg')?.value||'';
   const users=await getUsers();
   const keys=Object.keys(users);
   let count=0;
   for(const k of keys){
-    try{
-      const raw=await storeGet('lx_save_'+k);
-      if(raw){
-        const d=JSON.parse(raw);
-        d.money=(d.money||0)+amt;
-        d._adminModified=Date.now();
-        await storeSet('lx_save_'+k,JSON.stringify(d));
-        count++;
-      }
-    }catch(e){}
     const _ts2=Date.now();const _sig2=(_adminHash?_adminHash.hash.substring(0,8):'')+'_'+_ts2;
     try{await storeSet('lx_adminmsg_'+k,JSON.stringify({amt,msg,ts:_ts2,sig:_sig2}),true)}catch(e){}
-    try{await storeSet('lx_reload_'+k,Date.now().toString(),true)}catch(e){}
+    count++;
     if(k===currentUser&&G){
       addMoney(amt);finLog('admin',amt,'Admin: '+(msg||'Geld an alle'));uhud();save();
       _showAdminMoneyPopup(amt,msg);
+      try{await storeDel('lx_adminmsg_'+k,true)}catch(e){}
     }
   }
   adminLog('admin','💰 +'+fmt(amt)+' an alle '+count+' Spieler'+(msg?' ('+msg+')':''));
@@ -12965,7 +13072,7 @@ async function _checkAdminMsg(){
         await storeDel('lx_adminmsg_'+currentUser,true);return; // Invalid/spoofed signal
       }
       // Check timestamp freshness (max 1 hour old)
-      if(d.ts&&Date.now()-d.ts>3600000){
+      if(d.ts&&Date.now()-d.ts>7*86400000){
         await storeDel('lx_adminmsg_'+currentUser,true);return; // Expired
       }
       if(G){
