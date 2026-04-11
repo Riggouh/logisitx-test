@@ -68,11 +68,11 @@ const JS_FILES = [
   'src/js/ui/wiki.js',
   'src/js/ui/alliance_ui.js',
   'src/js/ui/state_setters.js',
-  'src/js/ui/game_bindings.js',
   'src/js/ui/settings.js',
   'src/js/game/admin.js',
   'src/js/ui/admin_ui.js',
   'src/js/game/admin_actions.js',
+  'src/js/ui/game_bindings.js',
   'src/js/init.js',
 ];
 
