@@ -42,6 +42,9 @@ if (WATCH) {
   await ctx.dispose();
 }
 
+// ── Queue script: proxy onclick= functions until game.js is ready ──
+const queueScript = "(function(){\n  var _q=[];\n  var _r=false;\n  var _fns=['showAuth', 'doLogin', 'doRegister', 'doResetStep1', 'doResetStep2', 'doChangePass', 'doChangeEmail', 'togglePassVis', 'openComputer', 'closeComputer', 'toggleAdmin', 'toggleDuty', 'toggleHamburger', 'closeHamburger', 'openSettings', 'toggleView', 'toggleMinimap', 'renDash', 'openAlliancePanel', 'closeAlliancePanel', 'showLeaderboard', 'showProfile', 'showAchievements', 'showTutorial', 'showWiki', 'showChangelog', 'showDutyHelp', 'showExplorerUI', 'doLogout'];\n  function _wrap(name){\n    window[name]=function(){\n      var a=arguments;\n      if(_r&&typeof window['_lx_'+name]==='function'){window['_lx_'+name].apply(this,a);return;}\n      _q.push([name,a]);\n    };\n  }\n  _fns.forEach(_wrap);\n  document.addEventListener('lxReady',function(){\n    _r=true;\n    // Re-map with real functions\n    _fns.forEach(function(n){window['_lx_'+n]=window[n]});\n    _q.forEach(function(c){\n      if(typeof window[c[0]]==='function')window[c[0]].apply(null,c[1]);\n    });\n    _q=[];\n  });\n})();";
+
 // ── Assemble index.html ──
 const head    = fs.readFileSync(path.join(DIR, 'src/template_head.html'), 'utf8');
 const body    = fs.readFileSync(path.join(DIR, 'src/template_body.html'), 'utf8');
@@ -71,8 +74,9 @@ ${css}
 </style>
 </head>
 ${body}
+<script>${queueScript}</script>
 <script>${polyfill}</script>
-<script type="module" src="game.js"></script>
+<script src="game.js"></script>
 </body></html>`;
 
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
