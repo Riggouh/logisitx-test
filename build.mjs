@@ -115,6 +115,7 @@ const polyfill = `(function(){
     const opts={method,headers:{'Content-Type':'application/json'}};
     if(body)opts.body=JSON.stringify(body);
     const r=await fetch(BASE+p,opts);
+    if(r.status===404)return null;
     if(!r.ok)throw new Error('Storage API: '+r.status);
     return r.json();
   }

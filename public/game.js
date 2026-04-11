@@ -1,4 +1,4 @@
-// LogistiX — Build U69ZE4 — 2026-04-11 10:08
+// LogistiX — Build U8WPX7 — 2026-04-11 11:22
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1261,7 +1261,7 @@ function companyValue(){
 }
 function newGame(city){
   cities=[city];
-  G={money:50000,tick:0,sel:city.id,vehs:[],blds:{},infra:{},stor:{},orders:[],finance:[],prodRes:{},
+  G={money:50000,tick:0,sel:city.id,vehs:[],blds:{},infra:{},stor:{},storRes:{},orders:[],finance:[],prodRes:{},
     log:['🎮 Willkommen in '+city.name+'!','🎯 Schau dir deine Missionen an!'],
     earned:0,dels:0,level:1,unlockedCities:[city],quests:{tutorial:{},dailies:null,weeklies:null,dailyTs:0,weeklyTs:0},
     history:[],standingOrders:[],pmListings:[],pmPickups:[]};
@@ -1618,7 +1618,7 @@ async function load(){
     }
     const off=d._t?Math.floor((Date.now()-d._t)/1000):0;delete d._t;
     if(d.unlockedCities&&d.unlockedCities.length){cities=[];d.unlockedCities.forEach(c=>{if(!cities.find(x=>x.id===c.id))cities.push(c)})}
-    G=d;if(!G.history)G.history=[];if(!G.infra)G.infra={};if(!G.standingOrders)G.standingOrders=[];if(!G.finance)G.finance=[];if(!G.prodRes)G.prodRes={};if(!G.level)G.level=1;
+    G=d;if(!G.history)G.history=[];if(!G.infra)G.infra={};if(!G.standingOrders)G.standingOrders=[];if(!G.finance)G.finance=[];if(!G.prodRes)G.prodRes={};if(!G.storRes)G.storRes={};if(!G.level)G.level=1;
     if(!G.pmListings)G.pmListings=[];if(!G.pmPickups)G.pmPickups=[];
     _initSettings();
     if(!G._fbAsked)G._fbAsked={};
@@ -4588,7 +4588,7 @@ function tickCore(){
 
   // ── Orders + Express ──
   if(G.tick%60===0){
-    if(cities.length>=2&&_openOrders.length<10){
+    if(cities.length>=1&&_openOrders.length<10){
       const o=genOrd();if(o)G.orders.push(o);
     }
     // Express order every 2-3 min
@@ -9045,6 +9045,7 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
     const _pr=_cityProdRates(c.id);
     const _mi=_cityMissingInputs(c.id,s);
     const cpct=cap?Math.round(used/cap*100):0;
+    if(!G.storRes)G.storRes={};
     const resTotal=sumObj(G.storRes[c.id]||{});
     const resPct=cap?Math.round(resTotal/cap*100):0;
     // Slim city header
