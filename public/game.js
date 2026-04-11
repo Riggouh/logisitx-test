@@ -1,4 +1,4 @@
-// LogistiX — Build U5RU2J — 2026-04-11 09:54
+// LogistiX — Build U69ZE4 — 2026-04-11 10:08
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1267,8 +1267,13 @@ function newGame(city){
     history:[],standingOrders:[],pmListings:[],pmPickups:[]};
   if(currentUser==='test')G.money=10000000;
 }
-function doLogout(){
-  save();
+async function doLogout(){
+  // Save immediately — bypass debounce, G is cleared right after
+  if(G&&currentUser){
+    if(typeof _savePending!=='undefined'&&_savePending){clearTimeout(_savePending);_savePending=null}
+    try{await storeSet('lx_save_'+currentUser,JSON.stringify({...G,_t:Date.now()}))}catch(e){console.warn('Logout save:',e)}
+    try{_saveLb()}catch(e){}
+  }
   try{sessionStorage.setItem('lx_session','')}catch(e){}
   // Close all popups and tutorial
   document.querySelectorAll('.unlock-bg,.tip-popup-bg,#tutWidget,#tipPopup').forEach(el=>el.remove());
