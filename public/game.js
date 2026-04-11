@@ -1,4 +1,4 @@
-// LogistiX — Build UA8M2E — 2026-04-11 11:59
+// LogistiX — Build UAY5OI — 2026-04-11 12:19
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -3045,8 +3045,8 @@ function _asgnUpdate(){
   let totalCap=0,count=0;
   _orderUI.getCheckedVehicles().forEach(cb=>{totalCap+=parseInt(cb.dataset?.cap||0,10)||0;count++});
   _orderUI.setAssignStatus(count?'<span style="color:var(--a)">✅ '+count+' Fzg · '+totalCap+'× Kapazität '+(totalCap>=remaining?'':'<span style="color:var(--go)">('+remaining+'× nötig)</span>')+'</span>':'Fahrzeuge auswählen...');
-  const btn=_orderUI.setAssignButton;
-  if(btn){btn.disabled=!count;btn.style.opacity=count?'1':'.4';btn.textContent='🚛 '+count+' Fzg zuweisen ('+totalCap+'×)'}
+  const btn=document.getElementById('asgnGoBtn');
+  if(btn&&btn.style){btn.disabled=!count;btn.style.opacity=count?'1':'.4';btn.textContent='🚛 '+count+' Fzg zuweisen ('+totalCap+'×)'}
 }
 function _asgnAll(){_orderUI.getCheckedVehicles(true).forEach(cb=>{cb.checked=true});_asgnUpdate()}
 function _asgnExec(){
