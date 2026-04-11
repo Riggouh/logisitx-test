@@ -91,7 +91,7 @@ let gameJs = `// LogistiX — Build ${BUILD_ID} — ${BUILD_TS}
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
-function html(){return Array.from(arguments[0]).map((s,i)=>s+(i<arguments.length-1?arguments[i+1]:'')).join('')}
+function html(){var s=arguments[0],r='';for(var i=0;i<s.length;i++){r+=s[i];if(i<arguments.length-1){var v=arguments[i+1];r+=Array.isArray(v)?v.join(''):v==null?'':v}}return r}
 `;
 
 for (const file of JS_FILES) {
