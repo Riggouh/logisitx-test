@@ -1,4 +1,4 @@
-// LogistiX — Build U8WPX7 — 2026-04-11 11:22
+// LogistiX — Build U95NXF — 2026-04-11 11:29
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -8807,15 +8807,15 @@ function _orderCard(o, accepted) {
       </div>
       ${!accepted ? html`
         <div style="display:flex;gap:6px;margin-top:6px">
-          <button class="btn sm" style="flex:1" onclick="accO('"+o.id+"');ren()">✅ Annehmen</button>
-          <button class="btn sm" onclick="declineO('"+o.id+"');ren()">✕</button>
+          <button class="btn sm" style="flex:1" onclick="accO('${o.id}');ren()">✅ Annehmen</button>
+          <button class="btn sm" onclick="declineO('${o.id}');ren()">✕</button>
         </div>
       ` : html`
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px">
           ${(()=>{const v=getVehicles().find(v=>v.cargo?.oid===o.id);
             return v ? html`<span class="sub">${v.type==='plane'?'✈️':v.type==='ship'?'🚢':v.type==='train'?'🚂':'🚛'} ${v.name||'Fahrzeug'} · ${Math.round((v.prog||0)/(v.tn||1)*100)}%</span>`
                      : html`<span class="sub" style="color:var(--go)">⏳ Zuweisung ausstehend</span>`})()}
-          <button class="btn sm" style="color:var(--r);font-size:10px" onclick="if(confirm('Stornieren?')){cancelO('"+o.id+"');ren()}">✕ Stornieren</button>
+          <button class="btn sm" style="color:var(--r);font-size:10px" onclick="if(confirm('Stornieren?')){cancelO('${o.id}');ren()}">✕ Stornieren</button>
         </div>
       `}
     </div>`;
@@ -8838,7 +8838,7 @@ function compFinance(el, append) {
         ${periods.map((p, i) => html`
           <button class="btn sm ${G._finPeriod === i ? 'on' : ''}"
             style="${G._finPeriod === i ? 'background:var(--a);color:var(--bg);border-color:var(--a)' : ''}"
-            onclick="setFinPeriod("+i+")">${p.name}</button>
+            onclick="setFinPeriod(${i})">${p.name}</button>
         `)}
       </div>
       ${crd(rw('💰 Einnahmen', `<span style="color:var(--a)">${fmt(income)}</span>`) +
