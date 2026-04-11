@@ -1,4 +1,4 @@
-// LogistiX — Build UJPA2Z — 2026-04-11 16:24
+// LogistiX — Build UN17NR — 2026-04-11 17:57
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -816,7 +816,8 @@ function _getResBase(cid){
 function cityFreeForGood(cid,good){
   if(!G)return 0;
   const b=_getResBase(cid);
-  if(G.resMode==='minimum'){
+  var mode=(G.resModes&&G.resModes[cid])||G.resMode||'exclusive';
+  if(mode==='minimum'){
     // Minimum mode: space is NOT blocked, any good can use any free space
     return Math.max(0,b.cap-b.totalUsed);
   }
@@ -5480,6 +5481,8 @@ function tick(){
       if(computerOpen){
         updateLiveElements();
         if(_compDirty){_compDirty=false;renComp()}
+        // Auto-refresh logistics/fleet tabs for live ETA countdown
+        if(tc%3===0&&typeof compTab!=='undefined'&&(compTab==='logistics'||compTab==='fleet'))markCompDirty();
       } else {
         if(tc%5===0)ren();
       }
@@ -8864,21 +8867,26 @@ function _orderCard(o, accepted) {
   var delivered = o.delivered || 0;
   var remaining = o.amt - delivered;
   var pct = o.amt ? Math.round(delivered / o.amt * 100) : 0;
-  var sep = '<div style="border-top:1px solid rgba(255,255,255,.06);margin:0"></div>';
+  var sep = '<div style="border-top:1px solid rgba(255,255,255,.06)"></div>';
 
-  var h = '<div class="crd" style="border-color:' + borderClr + ';padding:0;overflow:hidden">';
+  var h = '<div class="crd" data-oid="' + o.id + '" style="border-color:' + borderClr + ';padding:0;overflow:hidden">';
 
   // ═══ HEADER ═══
-  h += '<div style="padding:8px 10px;background:rgba(255,255,255,.02)">';
-  h += '<div class="rw"><span style="font-weight:700">' + (o.num ? '<span style="font-family:var(--mono);font-size:10px;opacity:.5">#' + o.num + '</span> ' : '') + (isExpress ? '<span style="color:var(--go)">⚡</span> ' : '') + (gd?.em || '') + ' ' + o.amt + '× ' + (gd?.name || o.good) + '</span>';
-  h += '<span style="font-family:var(--mono);font-weight:700;color:var(--a)">' + fmt(o.rew) + '</span></div>';
-  h += '<div class="rw" style="margin-top:2px"><span class="sub">→ ' + (o.toName || o.to);
-  if (o.srcDist) h += ' · ' + o.srcDist + ' km';
+  h += '<div style="padding:10px 12px;background:rgba(255,255,255,.02)">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline">';
+  h += '<span style="font-weight:700;font-size:14px">';
+  if (o.num) h += '<span style="font-family:var(--mono);font-size:11px;opacity:.4">#' + o.num + '</span> ';
+  if (isExpress) h += '<span style="color:var(--go)">⚡</span> ';
+  h += (gd ? gd.em + ' ' : '') + o.amt + '\u00d7 ' + (gd ? gd.name : o.good) + '</span>';
+  h += '<span style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--a)">' + fmt(o.rew) + '</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px">';
+  h += '<span class="sub">\u2192 ' + (o.toName || o.to);
+  if (o.srcDist) h += ' \u00b7 ' + o.srcDist + ' km';
   h += '</span>';
   if (!accepted) {
-    h += '<span class="sub">⏱ ' + ftime(tlLeft) + '</span>';
+    h += '<span class="sub">\u23f1 ' + ftime(tlLeft) + '</span>';
   } else {
-    h += '<span style="font-family:var(--mono);font-size:11px;color:' + (pct > 0 ? 'var(--a)' : 'var(--td)') + '">' + delivered + '/' + o.amt + ' (' + pct + '%)</span>';
+    h += '<span style="font-family:var(--mono);font-size:12px;color:' + (pct > 0 ? 'var(--a)' : 'var(--td)') + '">' + delivered + '/' + o.amt + ' (' + pct + '%)</span>';
   }
   h += '</div></div>';
 
@@ -8899,19 +8907,19 @@ function _orderCard(o, accepted) {
       if (bestSpd > 0) estTime = '~' + ftime(Math.round(o.srcDist / bestSpd * 3600));
     }
 
-    h += '<div style="padding:4px 10px 6px;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;color:var(--td)">';
+    h += '<div style="padding:4px 12px 6px;display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11px;color:var(--td)">';
     h += '<span>' + fmt(ppu) + '/St.';
     if (mktPct !== 0) h += ' <span style="color:' + (mktPct > 0 ? 'var(--a)' : 'var(--r)') + '">' + (mktPct > 0 ? '+' : '') + mktPct + '%</span>';
     h += '</span>';
-    if (o.srcCity) h += '<span>📍' + o.srcCity + '</span>';
-    h += '<span>📦' + oStock + '</span>';
-    h += '<span>🚚' + oFreeVehs + '</span>';
-    if (estTime) h += '<span>⏱' + estTime + '</span>';
+    if (o.srcCity) h += '<span>\ud83d\udccd ' + o.srcCity + '</span>';
+    h += '<span>\ud83d\udce6 ' + oStock + '</span>';
+    h += '<span>\ud83d\ude9a ' + oFreeVehs + '</span>';
+    if (estTime) h += '<span>\u23f1 ' + estTime + '</span>';
     h += '</div>';
 
-    h += '<div style="padding:2px 10px 8px;display:flex;gap:6px">';
-    h += '<button class="btn sm" style="flex:1;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="accO(\'' + o.id + '\');ren()">Annehmen</button>';
-    h += '<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.2)" onclick="declineO(\'' + o.id + '\');ren()">✕ Ablehnen</button>';
+    h += '<div style="padding:4px 12px 10px;display:flex;gap:6px">';
+    h += '<button class="btn sm" style="flex:1;height:34px;font-size:12px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="accO(\'' + o.id + '\');ren()">Annehmen</button>';
+    h += '<button class="btn sm" style="height:34px;font-size:12px;color:var(--r);border-color:rgba(248,113,113,.2)" onclick="declineO(\'' + o.id + '\');ren()">\u2715 Ablehnen</button>';
     h += '</div>';
 
   } else {
@@ -8923,19 +8931,22 @@ function _orderCard(o, accepted) {
     var approachVehs = getVehicles().filter(function(v2){return v2.followUpOrder===o.id});
 
     // ── Status ──
-    h += '<div style="padding:6px 10px">';
-    h += '<div style="display:flex;gap:10px;font-size:11px">';
-    h += '<span style="color:var(--a)">☑ ' + delivered + '/' + o.amt + '</span>';
-    h += '<span class="sub">🚛 ' + remaining + ' offen · ' + stock + '× vorrätig</span>';
+    h += '<div style="padding:8px 12px">';
+    h += '<div style="display:flex;gap:12px;font-size:12px">';
+    h += '<span style="color:var(--a)">\u2611 ' + delivered + '/' + o.amt + '</span>';
+    h += '<span class="sub">\ud83d\ude9b ' + remaining + ' offen \u00b7 ' + stock + '\u00d7 vorr\u00e4tig</span>';
     h += '</div>';
-    h += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
-    h += '<div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
-    if (pct > 0) h += '<div style="height:100%;width:' + pct + '%;background:var(--a);border-radius:3px"></div>';
+
+    // Progress bar with label inside
+    h += '<div style="position:relative;height:8px;margin-top:6px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">';
+    if (pct > 0) h += '<div style="height:100%;width:' + pct + '%;background:var(--a);border-radius:4px;transition:width .3s"></div>';
     h += '</div>';
-    h += '<span style="font-size:10px;font-family:var(--mono);color:var(--td);min-width:28px;text-align:right">' + pct + '%</span></div>';
+
+    // Deadline
     if (dlLeft > 0) {
-      h += '<div class="sub" style="font-size:10px;margin-top:3px">⏱ Frist: ' + ftime(dlLeft);
-      if (dlPct > 70) h += ' <span style="color:var(--r)">⚠️</span>';
+      var dlColor = dlPct > 80 ? 'var(--r)' : dlPct > 60 ? 'var(--go)' : 'var(--td)';
+      h += '<div style="font-size:11px;margin-top:4px;color:' + dlColor + '">\u23f1 Frist: ' + ftime(dlLeft);
+      if (dlPct > 70) h += ' \u26a0\ufe0f';
       h += '</div>';
     }
     h += '</div>';
@@ -8943,19 +8954,19 @@ function _orderCard(o, accepted) {
     // ── Fahrzeuge ──
     if (activeVehs.length || approachVehs.length) {
       h += sep;
-      h += '<div style="padding:4px 10px">';
+      h += '<div style="padding:6px 12px">';
       activeVehs.forEach(function(v) {
         var vPct = Math.round((v.prog || 0) / (v.tn || 1) * 100);
         var eta = Math.max(0, (v.tn || 0) - (v.prog || 0));
-        h += '<div style="display:flex;justify-content:space-between;font-size:10px;padding:1px 0">';
-        h += '<span style="color:var(--a)">🚛 ' + (VT[v.type]?.em || '') + ' ' + (typeof vehName==='function'?vehName(v):v.type) + ' · ' + (v.cargo?.amt||0) + '×</span>';
-        h += '<span style="color:var(--td)">' + vPct + '% · ⏱' + ftime(eta) + '</span></div>';
+        h += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 6px;margin-bottom:2px;background:rgba(61,214,140,.04);border-radius:4px">';
+        h += '<span style="color:var(--a)">\ud83d\ude9b ' + (typeof vehName==='function'?vehName(v):v.type) + ' \u00b7 ' + (v.cargo?.amt||0) + '\u00d7</span>';
+        h += '<span style="font-family:var(--mono);color:var(--td)">' + vPct + '% \u00b7 \u23f1' + ftime(eta) + '</span></div>';
       });
       approachVehs.forEach(function(v) {
         var eta = Math.max(0, (v.tn || 0) - (v.prog || 0));
-        h += '<div style="display:flex;justify-content:space-between;font-size:10px;padding:1px 0;color:var(--go)">';
-        h += '<span>🔄 ' + (VT[v.type]?.em || '') + ' ' + (typeof vehName==='function'?vehName(v):v.type) + ' · Anfahrt</span>';
-        h += '<span>⏱' + ftime(eta) + '</span></div>';
+        h += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 6px;margin-bottom:2px;background:rgba(251,191,36,.04);border-radius:4px;color:var(--go)">';
+        h += '<span>\ud83d\udd04 ' + (typeof vehName==='function'?vehName(v):v.type) + ' \u00b7 Anfahrt</span>';
+        h += '<span style="font-family:var(--mono)">\u23f1' + ftime(eta) + '</span></div>';
       });
       h += '</div>';
     }
@@ -8975,11 +8986,11 @@ function _orderCard(o, accepted) {
     var penalty = Math.floor((o.origRew || o.rew) * (PENALTY_BASE + penPctC * PENALTY_SCALE));
 
     h += sep;
-    h += '<div style="padding:4px 10px 8px;display:flex;gap:4px;flex-wrap:wrap">';
-    h += '<button class="btn sm" style="flex:2;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">⚡ Senden' + (freeV||soonV ? ' (🚛'+freeV+(soonV?'+'+soonV:'')+')':'') + '</button>';
-    h += '<button class="btn sm" style="flex:2" onclick="shAsgn(\'' + o.id + '\')">🚛 Zuweisen</button>';
-    h += '<button class="btn sm" style="flex:0;min-width:36px" onclick="showOrderDetail(\'' + o.id + '\')">📊</button>';
-    h += '<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.04);white-space:nowrap" onclick="if(confirm(\'Storno? −' + fmt(penalty) + '\')){cancelO(\'' + o.id + '\');ren()}">−' + fmt(penalty) + '</button>';
+    h += '<div style="padding:6px 12px 10px;display:flex;gap:4px;flex-wrap:wrap">';
+    h += '<button class="btn sm" style="flex:2;height:34px;font-size:12px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">\u26a1 Senden' + (freeV||soonV ? ' (\ud83d\ude9b'+freeV+(soonV?'+'+soonV:'')+')':'') + '</button>';
+    h += '<button class="btn sm" style="flex:2;height:34px;font-size:12px" onclick="shAsgn(\'' + o.id + '\')">\ud83d\ude9b Zuweisen</button>';
+    h += '<button class="btn sm" style="flex:0;height:34px;min-width:38px;font-size:14px" onclick="showOrderDetail(\'' + o.id + '\')">\ud83d\udcca</button>';
+    h += '<button class="btn sm" style="height:34px;font-size:12px;color:var(--r);border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.06);white-space:nowrap;font-weight:600" onclick="if(confirm(\'Storno? \u2212' + fmt(penalty) + '\')){cancelO(\'' + o.id + '\');ren()}">\u2212' + fmt(penalty) + '</button>';
     h += '</div>';
   }
   h += '</div>';
@@ -9279,7 +9290,7 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
         let totalProdResForGood=0;
         if(G.prodRes)Object.values(G.prodRes).forEach(cr=>{if(cr[g])totalProdResForGood+=cr[g]});
         h+='<div class="crd" style="padding:5px 8px;margin-bottom:3px">';
-        const mIcon=G.resMode==='minimum'?'📊':'🔒';
+        const mIcon=(G.resModes&&G.resModes[Object.keys(G.resModes)[0]]||'exclusive')==='minimum'?'📊':'🔒';
         h+='<div class="rw"><span style="font-size:13px">'+(gd.em||'')+' <b>'+(gd.name||g)+'</b>'+(totalResForGood?' <span class="tg" style="font-size:9px;color:var(--a2);border-color:rgba(56,189,248,.3)">'+mIcon+' '+totalResForGood+' res.</span>':'')+(totalProdResForGood?' <span class="tg" style="font-size:9px;color:var(--go);border-color:rgba(251,191,36,.3)">🏭 '+totalProdResForGood+' Prod.</span>':'')+'</span>';
         h+='<span class="mono-val-bold">'+totalAll+(bldAmt?' <span class="text-muted">('+total+' 📦 + '+bldAmt+' 🏭)</span>':'')+'</span></div>';
         if(inCities.length>=1){h+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">';
@@ -9317,23 +9328,25 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
     const res=G.storRes[c.id];
     const totalRes=sumObj(res);
     const resOpen=window._showResUI===c.id;
-    h+='<div style="cursor:pointer;display:flex;align-items:center;gap:4px;margin:4px 0 2px;padding:3px 0;border-top:1px solid var(--bd)" onclick="window._showResUI=window._showResUI===\''+c.id+'\'?null:\''+c.id+'\';renComp()">';
-    h+='<span class="text-muted">'+(resOpen?'▼':'▶')+'</span>';
-    h+='<span style="font-weight:600;font-size:11px">📋 Reservierungen</span>';
-    h+='<span class="sub" style="font-size:10px">'+totalRes+'/'+cap+(totalRes?' · '+Object.keys(res).filter(g=>res[g]>0).length+' Waren':'')+'</span></div>';
+    h+='<div style="cursor:pointer;display:flex;align-items:center;gap:6px;margin:8px 0 4px;padding:6px 8px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="window._showResUI=window._showResUI===\''+c.id+'\'?null:\''+c.id+'\';renComp()">';
+    h+='<span style="color:var(--a2)">'+(resOpen?'▼':'▶')+'</span>';
+    h+='<span style="font-weight:600;font-size:12px;color:var(--a2)">📋 Reservierungen</span>';
+    h+='<span class="sub" style="font-size:11px">'+totalRes+'/'+cap+(totalRes?' · '+Object.keys(res).filter(g=>res[g]>0).length+' Waren':'')+'</span></div>';
     if(resOpen){
-      // Mode toggle
-      if(!G.resMode)G.resMode='exclusive';
+      // Mode toggle (per city)
+      if(!G.resModes)G.resModes={};
+      if(!G.resModes[c.id])G.resModes[c.id]=G.resMode||'exclusive'; // migrate from global
+      var cityMode=G.resModes[c.id];
       h+='<div style="display:flex;gap:4px;margin-bottom:8px">';
-      h+='<button class="btn sm" style="font-size:10px;'+(G.resMode==='exclusive'?'background:rgba(56,189,248,.12);color:var(--a2);border-color:rgba(56,189,248,.3)':'')+ '" onclick="setResMode(\'exclusive\')">🔒 Exklusiv</button>';
-      h+='<button class="btn sm" style="font-size:10px;'+(G.resMode==='minimum'?'background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)':'')+ '" onclick="setResMode(\'minimum\')">📊 Mindest-Bestand</button>';
+      h+='<button class="btn sm" style="font-size:10px;'+(cityMode==='exclusive'?'background:rgba(56,189,248,.12);color:var(--a2);border-color:rgba(56,189,248,.3)':'')+ '" onclick="if(!G.resModes)G.resModes={};G.resModes[\''+c.id+'\']=\'exclusive\';save();renComp()">🔒 Exklusiv</button>';
+      h+='<button class="btn sm" style="font-size:10px;'+(cityMode==='minimum'?'background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)':'')+ '" onclick="if(!G.resModes)G.resModes={};G.resModes[\''+c.id+'\']=\'minimum\';save();renComp()">📊 Mindest</button>';
       h+='</div>';
-      if(G.resMode==='exclusive'){
-        h+='<div style="margin-bottom:8px;padding:8px 10px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:6px;font-size:11px;color:var(--a2)">';
-        h+='<b>🔒 Exklusiv</b> — Reservierter Platz ist <b>nur</b> für diese Ware. Andere Waren können den Platz nicht belegen, auch wenn er leer ist. Aufträge und DAs dürfen den Bestand nutzen — der Platz bleibt danach frei für Nachproduktion.</div>';
+      if(cityMode==='exclusive'){
+        h+='<div style="margin-bottom:8px;padding:6px 8px;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.15);border-radius:6px;font-size:10px;color:var(--a2)">';
+        h+='<b>🔒 Exklusiv</b> — Platz nur für diese Ware reserviert.</div>';
       } else {
-        h+='<div style="margin-bottom:8px;padding:8px 10px;background:rgba(61,214,140,.08);border:1px solid rgba(61,214,140,.2);border-radius:6px;font-size:11px;color:var(--a)">';
-        h+='<b>📊 Mindest-Bestand</b> — Halte mindestens X auf Lager. Alles darüber ist frei für Verkauf und Versand. Auto-Manager und DAs greifen erst ab dem überschüssigen Bestand.</div>';
+        h+='<div style="margin-bottom:8px;padding:6px 8px;background:rgba(61,214,140,.06);border:1px solid rgba(61,214,140,.15);border-radius:6px;font-size:10px;color:var(--a)">';
+        h+='<b>📊 Mindest</b> — Mindestbestand halten, Überschuss frei.</div>';
       }
       // Show existing reservations with fill bars
       const resEntries=Object.entries(res).filter(([,v])=>v>0);
@@ -9341,10 +9354,10 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
         resEntries.forEach(([g,amt])=>{
           const cur=s[g]||0;const pct=amt>0?Math.min(100,Math.round(cur/amt*100)):0;
           const barCol=pct>=80?'var(--a)':pct>=40?'var(--go)':'var(--r)';
-          const modeIcon=G.resMode==='minimum'?'📊':'🔒';
+          const modeIcon=cityMode==='minimum'?'📊':'🔒';
           h+='<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;border-top:1px solid var(--bd)">';
           h+='<span style="flex:1;min-width:0">'+(GOODS[g]?.em||'')+' '+(GOODS[g]?.name||g)+' · <b>'+amt+'</b> '+modeIcon;
-          if(G.resMode==='minimum'&&cur>amt)h+=' <span class="sub" style="color:var(--a)">'+amt+'× geschützt · '+(cur-amt)+'× frei</span>';
+          if(cityMode==='minimum'&&cur>amt)h+=' <span class="sub" style="color:var(--a)">'+amt+'× geschützt · '+(cur-amt)+'× frei</span>';
           else h+=' <span class="sub">('+cur+'/'+amt+' · '+pct+'%)</span>';
           h+='<div style="display:inline-block;width:30px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;vertical-align:middle;margin-left:4px"><div style="width:'+pct+'%;height:100%;background:'+barCol+';border-radius:2px"></div></div>';
           h+='</span>';
@@ -9418,19 +9431,25 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
         h+='</div></div>';
       }
       // Add new reservation
-      h+='<div style="display:flex;gap:4px;margin-top:4px;align-items:center">';
-      h+='<select id="resAddGood_'+c.id+'" class="sl" style="flex:1;font-size:11px;padding:3px 6px">';
+      h+='<div style="display:flex;gap:4px;margin-top:6px;align-items:center">';
+      h+='<select id="resAddGood_'+c.id+'" class="sl" style="flex:1;font-size:11px;padding:4px 6px">';
       h+='<option value="">+ Ware reservieren…</option>';
-      // Show goods that are produced here or stored here
-      const localGoods=new Set();
-      Object.keys(s).forEach(g=>{if(s[g]>0)localGoods.add(g)});
-      Object.entries(cd.bldStock).forEach(([g])=>localGoods.add(g));
-      (G.blds[c.id]||[]).forEach(b2=>{const d2=BLD[b2.type];if(d2&&d2.prod)localGoods.add(d2.prod)});
-      [...localGoods].filter(g=>!res[g]).sort((a,b)=>(GOODS[a]?.name||a).localeCompare(GOODS[b]?.name||b)).forEach(g=>{
-        h+='<option value="'+g+'">'+(GOODS[g]?.em||'')+' '+(GOODS[g]?.name||g)+'</option>'});
+      // Group all goods by category
+      const cats2={roh:'🌾 Rohstoffe',tier:'🐄 Tierprodukte',ver:'🏭 Verarbeitung'};
+      const allGoods=Object.entries(GOODS).filter(([g])=>!res[g]).sort((a,b)=>(a[1].name||a[0]).localeCompare(b[1].name||b[0]));
+      Object.entries(cats2).forEach(([cat,label])=>{
+        const inCat=allGoods.filter(([g,gd])=>gd.cat===cat);
+        if(inCat.length){
+          h+='<optgroup label="'+label+'">';
+          inCat.forEach(([g,gd])=>{
+            const inStock=(s[g]||0)>0;
+            h+='<option value="'+g+'">'+(gd.em||'')+' '+gd.name+(inStock?' ('+s[g]+'×)':'')+'</option>'});
+          h+='</optgroup>';
+        }
+      });
       h+='</select>';
-      h+='<input type="number" id="resAddAmt_'+c.id+'" min="1" max="'+(cap-totalRes)+'" value="50" style="width:55px;padding:3px 4px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--t);font-family:var(--mono);font-size:11px;text-align:center">';
-      h+='<button class="btn sm" onclick="const g=document.getElementById(\'resAddGood_'+c.id+'\').value,a=parseInt(document.getElementById(\'resAddAmt_'+c.id+'\').value,10);if(g&&a>0)setStorRes(\''+c.id+'\',g,a)">+</button>';
+      h+='<input type="number" id="resAddAmt_'+c.id+'" min="1" max="'+(cap-totalRes)+'" value="50" style="width:55px;padding:4px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--t);font-family:var(--mono);font-size:11px;text-align:center">';
+      h+='<button class="btn sm" style="height:28px" onclick="const g=document.getElementById(\'resAddGood_'+c.id+'\').value,a=parseInt(document.getElementById(\'resAddAmt_'+c.id+'\').value,10);if(g&&a>0)setStorRes(\''+c.id+'\',g,a)">+</button>';
       h+='</div>';
       // Auto-optimize button
       h+='<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--bd)">';
@@ -9455,7 +9474,7 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
         h+='<div style="display:flex;align-items:center;gap:4px;padding:4px 0;font-size:12px;border-top:1px solid var(--bd)">';
         let resBadge='';
         if(res[g]){
-          if(G.resMode==='minimum'&&amt>res[g])resBadge=' <span class="tg" style="font-size:9px;color:var(--a);border-color:rgba(61,214,140,.3)">📊 '+res[g]+' geschützt · '+(amt-res[g])+' frei</span>';
+          if(cityMode==='minimum'&&amt>res[g])resBadge=' <span class="tg" style="font-size:9px;color:var(--a);border-color:rgba(61,214,140,.3)">📊 '+res[g]+' geschützt · '+(amt-res[g])+' frei</span>';
           else resBadge=' <span class="tg" style="font-size:9px;color:var(--a2);border-color:rgba(56,189,248,.3)">📋 '+res[g]+' res.</span>';
         }
         let prodBadge='';if(_pr[g]){const pm=Math.round(_pr[g]*60*10)/10;prodBadge=' <span class="sub" style="color:var(--a);font-size:9px">(+'+pm+'/min)</span>'}
@@ -9777,137 +9796,135 @@ function compMarket(el){
 function compRoutes(el){
   if(routesSub==='standing'){compStanding(el);return}
   if(routesSub==='transfer'){compTransfer(el);return}
-  let h=tabHead('routes','🗺️ Routenplaner','Lieferungen planen, verfolgen und Folgeaufträge zuweisen');
-  // Fleet overview bar
-  const idleV=G.vehs.filter(v=>v.st==='idle'),movingV=G.vehs.filter(v=>v.st==='moving');
-  h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">';
-  h+='<span class="tg g">🟢 '+idleV.length+' bereit</span><span class="tg y">🔶 '+movingV.length+' unterwegs</span>';
-  // Per-city idle vehicle summary
-  const vehByCty={};idleV.forEach(v=>{vehByCty[v.loc]=(vehByCty[v.loc]||0)+1});
-  Object.entries(vehByCty).forEach(([cid,n])=>{const cn=C(cid);if(cn)h+='<span class="tg">'+cn.name+' 🚛'+n+'</span>'});
+  let h=tabHead('routes','🚛 Fahrzeuge & Routen','Alle Fahrzeuge, Filter nach Herkunft, Ziel oder Auftrag');
+
+  // ── Filter bar ──
+  if(!G._rtFilter)G._rtFilter={from:'',to:'',num:''};
+  var rf=G._rtFilter;
+  h+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">';
+  h+='<input class="sl" style="flex:1;min-width:100px;font-size:12px;padding:6px 8px" placeholder="📤 Herkunft" value="'+(rf.from||'')+'" oninput="G._rtFilter.from=this.value;renComp()"/>';
+  h+='<input class="sl" style="flex:1;min-width:100px;font-size:12px;padding:6px 8px" placeholder="🎯 Zielort" value="'+(rf.to||'')+'" oninput="G._rtFilter.to=this.value;renComp()"/>';
+  h+='<input class="sl" style="width:80px;font-size:12px;padding:6px 8px;font-family:var(--mono)" placeholder="#Nr" value="'+(rf.num||'')+'" oninput="G._rtFilter.num=this.value;renComp()"/>';
+  if(rf.from||rf.to||rf.num)h+='<button class="btn sm" onclick="G._rtFilter.from=\'\';G._rtFilter.to=\'\';G._rtFilter.num=\'\';renComp()">✕</button>';
   h+='</div>';
-  const selCid=(!routesShowAll&&G.sel)?G.sel:null;
-  const sc=selCid?C(selCid):null;
-  if(sc)h+='<div class="sub" style="margin-bottom:8px;padding:6px 8px;background:rgba(61,214,140,.04);border:1px solid rgba(61,214,140,.15);border-radius:6px">📍 Filter: <b>'+sc.name+'</b> – nur Routen von/nach hier <button class="btn sm" onclick="routesShowAll=true;routesSub=\'all\';G.sel=null;renComp()" style="margin-left:6px">✕ Alle</button></div>';
 
-  const allAcc=G.orders.filter(o=>o.acc);
-  // Filter by city if selected (destination only)
-  const acc=selCid?allAcc.filter(o=>o.to===selCid):allAcc;
-  if(selCid&&acc.length!==allAcc.length)h+='<div class="sub" class="mb6b">Zeige '+acc.length+' von '+allAcc.length+' aktiven Aufträgen</div>';
+  // ── Fleet summary ──
+  var idleV=G.vehs.filter(function(v){return v.st==='idle'});
+  var movingV=G.vehs.filter(function(v){return v.st==='moving'});
+  h+='<div style="display:flex;gap:6px;margin-bottom:10px;font-size:12px">';
+  h+='<span class="tg g">🟢 '+idleV.length+' bereit</span>';
+  h+='<span class="tg y">🟠 '+movingV.length+' unterwegs</span>';
+  h+='<span class="tg">Gesamt: '+G.vehs.length+'</span>';
+  h+='</div>';
 
-  const unassigned=acc.filter(o=>{const rem=o.amt-(o.shipped||0);return rem>0&&!G.vehs.find(x=>x.cargo?.oid===o.id&&x.st==='moving')});
-  const partialShipped=acc.filter(o=>(o.shipped||0)>0&&(o.shipped||0)<o.amt);
-  const running=acc.filter(o=>G.vehs.find(x=>x.cargo?.oid===o.id&&x.st==='moving'));
-  if(unassigned.length){h+='<div class="sec-label" class="flex-sb">Zuweisen · '+unassigned.length+'<button class="btn sm" style="font-size:10px;background:rgba(56,189,248,.1);color:var(--a2);border-color:rgba(56,189,248,.3)" onclick="_routeOptimize()">🧮 Alle optimieren</button></div>';
-    unassigned.forEach(o=>{const t=Cx(o.to);if(!t)return;
-      const shipped=o.shipped||0;const remaining=o.amt-shipped;
-      const globalStock=_globalStock(o.good);
-      const avlLocal=G.vehs.filter(x=>x.st==='idle'&&!x.followUpOrder&&!isSOBound(x)&&canVehTravel(x,o.to)&&_cityStock(x.loc,o.good)>0);
-      const avlRemote=G.vehs.filter(x=>x.st==='idle'&&!x.followUpOrder&&!isSOBound(x)&&canVehTravel(x,o.to)&&_cityStock(x.loc,o.good)<=0);
-      const avlTotal=avlLocal.length+avlRemote.length;
-      // Vehicles already assigned to this order
-      const carryingVehs=G.vehs.filter(x=>x.cargo?.oid===o.id&&x.st==='moving');
-      const approachVehs=G.vehs.filter(x=>x.st==='moving'&&x.followUpOrder===o.id&&!x.cargo?.oid);
-      h+='<div class="crd"><div class="rw"><span>'+fmtOrd(o.num)+' '+(GOODS[o.good]?.em||'')+' '+o.amt+'×</span><span class="mono-val-md">'+fmt(o.rew)+'</span></div>';
-      const src=_nearestSourceCity(o.good,t);
-      h+='<div class="sub">→ '+t.name+(src?' · <span class="c-a2">📍 '+src.c.name+' ('+_cityStock(src.c.id,o.good)+'×) · '+Math.round(src.d)+' km</span>':' · '+globalStock+'× vorrätig')+'</div>';
-      if(shipped>0)h+='<div class="sub" class="c-amber">📦 Bereits verschickt: '+shipped+'/'+o.amt+'<div class="pb"><div class="pf" style="width:'+(shipped/o.amt*100)+'%"></div></div></div>';
-      // Show already assigned vehicles
-      if(carryingVehs.length||approachVehs.length){
-        h+='<div style="margin-top:4px;padding:4px 6px;border-radius:6px;background:rgba(61,214,140,.03);border:1px solid rgba(61,214,140,.1)">';
-        h+='<div style="font-size:10px;color:var(--td);margin-bottom:2px">🚛 Zugewiesene Fahrzeuge:</div>';
-        carryingVehs.forEach(v=>{const vt=VT[v.type];
-          h+='<div style="font-size:11px;padding:1px 0">'+vt.em+' <b>'+vehName(v)+'</b> <span class="tg g" style="font-size:9px">🔶 transportiert '+(v.cargo?.amt||0)+'×</span></div>'});
-        approachVehs.forEach(v=>{const vt=VT[v.type];
-          h+='<div style="font-size:11px;padding:1px 0">'+vt.em+' <b>'+vehName(v)+'</b> <span class="tg b" style="font-size:9px">📋 Folgeauftrag · Anfahrt</span></div>'});
-        h+='</div>';
+  // ── Build vehicle list ──
+  var allVehs=[].concat(movingV).concat(idleV); // moving first
+  var fFrom=(rf.from||'').toLowerCase();
+  var fTo=(rf.to||'').toLowerCase();
+  var fNum=(rf.num||'').replace('#','');
+
+  var filtered=allVehs.filter(function(v){
+    // Filter by origin
+    if(fFrom){
+      var fromName='';
+      if(v.st==='moving'&&v.rt)fromName=(C(v.rt.from)?.name||'').toLowerCase();
+      else fromName=(C(v.loc)?.name||v.loc||'').toLowerCase();
+      if(fromName.indexOf(fFrom)===-1)return false;
+    }
+    // Filter by destination
+    if(fTo){
+      var toName='';
+      if(v.st==='moving'&&v.rt)toName=(C(v.rt.to)?.name||v.rt.toName||'').toLowerCase();
+      else toName=(C(v.depot||v.loc)?.name||'').toLowerCase();
+      if(toName.indexOf(fTo)===-1)return false;
+    }
+    // Filter by order number
+    if(fNum){
+      var orderNum='';
+      if(v.cargo&&v.cargo.oid){var oo=findOrder(v.cargo.oid);if(oo)orderNum=String(oo.num||'')}
+      if(v.followUpOrder){var fo=findOrder(v.followUpOrder);if(fo)orderNum+=','+String(fo.num||'')}
+      if(orderNum.indexOf(fNum)===-1)return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){
+    h+='<div class="sub" style="text-align:center;padding:20px;opacity:.6">Keine Fahrzeuge'+(fFrom||fTo||fNum?' für diesen Filter':'')+'</div>';
+  }
+
+  // ── Render vehicles ──
+  filtered.forEach(function(v){
+    var vt=VT[v.type]||{em:'🚛',spd:60};
+    var isMoving=v.st==='moving';
+    var fromC=isMoving&&v.rt?C(v.rt.from):C(v.loc);
+    var toC=isMoving&&v.rt?Cx(v.rt.to):null;
+    var order=v.cargo&&v.cargo.oid?findOrder(v.cargo.oid):null;
+    var fuOrder=v.followUpOrder?findOrder(v.followUpOrder):null;
+    var bgClr=isMoving?'rgba(61,214,140,.03)':'rgba(255,255,255,.01)';
+    var borderL=isMoving?(order?'3px solid var(--a)':'3px solid var(--go)'):'3px solid var(--bd)';
+
+    h+='<div class="crd" style="border-left:'+borderL+';padding:0;overflow:hidden;background:'+bgClr+'">';
+
+    // Header: vehicle name + status
+    h+='<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center">';
+    h+='<span style="font-size:13px;font-weight:600">'+vt.em+' '+vehName(v)+'</span>';
+    if(isMoving){
+      var vPct=Math.round((v.prog||0)/(v.tn||1)*100);
+      var eta=Math.max(0,(v.tn||0)-(v.prog||0));
+      h+='<span style="font-family:var(--mono);font-size:12px;color:var(--a)">'+vPct+'% · ⏱'+ftime(eta)+'</span>';
+    } else {
+      h+='<span class="tg" style="font-size:10px">🟢 Bereit</span>';
+    }
+    h+='</div>';
+
+    // Route / location
+    h+='<div style="padding:0 12px 6px;font-size:12px">';
+    if(isMoving&&fromC&&toC){
+      h+='<div class="sub">'+(fromC.name||'?')+' → '+(toC.name||v.rt?.toName||'?')+'</div>';
+      // Progress bar
+      var pct2=Math.round((v.prog||0)/(v.tn||1)*100);
+      h+='<div style="position:relative;height:6px;margin-top:4px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
+      h+='<div style="height:100%;width:'+pct2+'%;background:var(--a);border-radius:3px"></div></div>';
+    } else {
+      h+='<div class="sub">📍 '+(fromC?.name||v.loc||'?')+'</div>';
+    }
+
+    // Cargo
+    if(v.cargo){
+      var gd2=GOODS[v.cargo.good];
+      h+='<div style="margin-top:4px;font-size:11px">📦 '+(gd2?.em||'')+' '+(v.cargo.amt||0)+'× '+(gd2?.name||v.cargo.good);
+      if(order)h+=' · <span style="color:var(--a)">'+fmtOrd(order.num)+'</span>';
+      h+='</div>';
+    }
+    h+='</div>';
+
+    // Follow-up / post-delivery info + dropdown
+    if(isMoving){
+      h+='<div style="border-top:1px solid rgba(255,255,255,.06);padding:6px 12px">';
+      if(fuOrder){
+        var fuTgt=Cx(fuOrder.to);
+        h+='<div style="font-size:11px;margin-bottom:4px"><span class="tg b" style="font-size:10px">📋 Folgeauftrag</span> '+(GOODS[fuOrder.good]?.em||'')+' → '+(fuTgt?.name||'?')+' <button class="btn sm" style="padding:1px 5px;font-size:9px" onclick="setFollowUpOrder(\''+v.id+'\',null);renComp()">✕</button></div>';
       }
-      h+='<div style="display:flex;gap:4px;margin-top:6px">';
-      if(avlTotal>0){
-        h+='<button class="btn full" onclick="autoAssign(\''+o.id+'\')">⚡ Auto (🚛'+avlLocal.length+(avlRemote.length?'+'+avlRemote.length+'📍':'')+')</button>';
-        h+='<button class="btn" onclick="shAsgn(\''+o.id+'\')">🚛 Zuweisen</button>';
-      } else h+='<button class="btn full" onclick="shAsgn(\''+o.id+'\')">🚛 Zuweisen</button>';
-      h+='</div></div>'})}
-  // Running orders
-  if(running.length){h+='<div class="sec-label">Laufend · '+running.length+'</div>';
-    running.forEach(o=>{const t=Cx(o.to);if(!t)return;
-      const vehs=G.vehs.filter(x=>x.cargo?.oid===o.id&&x.st==='moving');if(!vehs.length)return;
-      const delivered=o.delivered||0;const shipped=o.shipped||0;
-      h+='<div class="crd"><div class="rw"><span class="fw6">'+fmtOrd(o.num)+' '+(GOODS[o.good]?.em||'')+' '+o.amt+'× '+(GOODS[o.good]?.name||'')+'</span><span class="mono-val-md">'+fmt(o.rew)+'</span></div>';
-      h+='<div class="sub">→ '+t.name+' · ✅ '+delivered+'/'+o.amt+'</div>';
-      vehs.forEach(v=>{const vt=VT[v.type];const vFrom=Cx(v.rt?.from);const tn=vFrom?tripT(vFrom,t,vt.spd):300;const pct=Math.min(v.prog/(tn||1),1);
-        h+='<div style="margin-top:4px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.02)">';
-        h+='<div style="display:flex;align-items:center;gap:6px">';
-        h+='<span style="font-size:12px">'+vt.em+' <b>'+vehName(v)+'</b> <span class="sub">'+(vFrom?.name||'?')+'→</span></span>';
-        h+='<span class="sub">'+(v.cargo?.amt||0)+'×</span>';
-        h+='<div class="pb" style="flex:1;height:5px"><div class="pf" style="width:'+pct*100+'%"></div></div>';
-        h+='<span style="font-family:var(--mono);font-size:12px;color:var(--a);font-weight:700">'+Math.floor(pct*100)+'%</span>';
-        h+='<span class="sub">'+ftime(Math.max(0,tn-v.prog))+'</span></div>';
-        // Follow-up order / post-delivery destination
-        const fuo=v.followUpOrder?findOrder(v.followUpOrder):null;
-        const pd=v.postDelivery?C(v.postDelivery):null;
-        if(fuo){const tc2=Cx(fuo.to);
-          h+='<div class="sub" style="margin-top:3px"><span class="tg b" style="font-size:10px">📋 Folgeauftrag</span> '+(GOODS[fuo.good]?.em||'')+' → '+(tc2?.name||'?')+' <button class="btn sm" style="padding:1px 5px;font-size:9px" onclick="event.stopPropagation();setFollowUpOrder(\''+v.id+'\',null);renComp()">✕</button></div>';
-        } else if(pd){
-          h+='<div class="sub" style="margin-top:3px"><span class="tg g" style="font-size:10px">→ Danach</span> '+pd.name+' <button class="btn sm" style="padding:1px 5px;font-size:9px" onclick="event.stopPropagation();setPostDelivery(\''+v.id+'\',null);renComp()">✕</button></div>';
-        }
-        // Follow-up dropdown
-        const unasOrd=G.orders.filter(x=>x.acc&&(x.amt-(x.delivered||0))>0);
-        h+='<select class="sl" style="margin-top:3px;font-size:11px;padding:3px 6px" onchange="const val=this.value;if(!val)return;if(val.startsWith(\'ord:\'))setFollowUpOrder(\''+v.id+'\',val.substr(4));else setPostDelivery(\''+v.id+'\',val);renComp()">';
-        h+='<option value="">Nach Lieferung…</option>';
-        if(unasOrd.length){h+='<optgroup label="📋 Folgeauftrag">';
-          unasOrd.forEach(uo=>{const ut=Cx(uo.to);if(!ut)return;
-            h+='<option value="ord:'+uo.id+'">'+fmtOrd(uo.num)+' '+(GOODS[uo.good]?.em||'')+' →'+ut.name+' '+fmt(uo.rew)+'</option>'});
-          h+='</optgroup>'}
-        h+='<optgroup label="📍 Zielort">';
-        cities.forEach(x=>{h+='<option value="'+x.id+'">'+x.name+'</option>'});
-        h+='</optgroup></select>';
-        h+='</div>'});
-      // Approaching vehicles
-      const approaching=G.vehs.filter(v=>v.st==='moving'&&v.followUpOrder===o.id&&!v.cargo?.oid);
-      approaching.forEach(v=>{const vt=VT[v.type];
-        h+='<div style="font-size:12px;color:#a855f7;margin-top:3px;padding:2px 6px">'+vt.em+' <b>'+vehName(v)+'</b> auf Anfahrt...</div>'});
-      // Remaining to ship
-      const remaining=o.amt-shipped;
-      if(remaining>0){
-        const avlAll2=G.vehs.filter(x=>x.st==='idle'&&!isSOBound(x)&&canVehTravel(x,o.to));
-        if(avlAll2.length)h+='<div style="margin-top:4px"><button class="btn sm" class="badge-warn" onclick="autoAssign(\''+o.id+'\')">⚡ Nachsenden ('+remaining+'× · 🚛'+avlAll2.length+')</button></div>';
+      var unasOrd2=G.orders.filter(function(x){return x.acc&&(x.amt-(x.delivered||0))>0});
+      h+='<select class="sl" style="width:100%;font-size:11px;padding:4px 6px" onchange="var val=this.value;if(!val)return;if(val.indexOf(\'ord:\')===0)setFollowUpOrder(\''+v.id+'\',val.substr(4));else setPostDelivery(\''+v.id+'\',val);renComp()">';
+      h+='<option value="">Nach Lieferung…</option>';
+      if(unasOrd2.length){
+        h+='<optgroup label="📋 Folgeauftrag">';
+        unasOrd2.forEach(function(uo){var ut=Cx(uo.to);if(!ut)return;
+          h+='<option value="ord:'+uo.id+'"'+(v.followUpOrder===uo.id?' selected':'')+'>'+fmtOrd(uo.num)+' '+(GOODS[uo.good]?.em||'')+' →'+ut.name+' '+fmt(uo.rew)+'</option>'});
+        h+='</optgroup>';
       }
-      h+='</div>'})}
-  // Market trips
-  const mktVehs=G.vehs.filter(v=>v.st==='moving'&&v.cargo?.market);
-  if(mktVehs.length){h+='<div class="sec-label" class="c-amber">💰 Marktverkäufe · '+mktVehs.length+'</div>';
-    mktVehs.forEach(v=>{const vt=VT[v.type];if(!vt)return;
-      const f2=C(v.rt.from)||Cx(v.rt.from);const t2=Cx(v.rt.to)||(v.rt.toLat?{lat:v.rt.toLat,lng:v.rt.toLng,name:v.rt.toName||'?'}:null);
-      if(!f2||!t2)return;
-      const tn2=tripT(f2,t2,vt.spd);const pct2=Math.min(v.prog/(tn2||1),1);
-      const isReturn=v.cargo.returning;
-      h+='<div class="crd" style="border-left:3px solid var(--go);background:rgba(251,191,36,.02)">';
-      h+='<div class="rw"><span>'+vt.em+' <b>'+vehName(v)+'</b> <span class="tg" style="background:rgba(251,191,36,.12);color:var(--go);border-color:rgba(251,191,36,.25)">'+(isReturn?'🔙 Rückfahrt':'💰 Marktfahrt')+'</span></span>';
-      h+='<span class="eta">'+Math.floor(pct2*100)+'%</span></div>';
-      h+='<div class="sub">'+(f2.name||'?')+' → '+(t2.name||'?')+'</div>';
-      h+='<div class="pb"><div class="pf" data-vprog="'+v.id+'" style="width:'+pct2*100+'%;background:var(--go)"></div></div>';
-      h+='<div style="display:flex;gap:3px;margin-top:3px">';
-      if(!v.recallToDepot)h+='<button class="btn sm" onclick="recallAfterDelivery(\''+v.id+'\')" style="font-size:10px">🔙 Nach Lieferung → Depot</button>';
-      else h+='<span class="tg" class="c-a-10">✅ Fährt danach ins Depot</span>';
-      h+='</div></div>'})}
-  // Alliance deliveries
-  const allyVehs=G.vehs.filter(v=>v.st==='moving'&&v.cargo?.allianceDelivery);
-  if(allyVehs.length){h+='<div class="sec-label" style="color:#a855f7">🤝 Allianzlieferungen · '+allyVehs.length+'</div>';
-    allyVehs.forEach(v=>{const vt=VT[v.type];if(!vt)return;
-      const f3=C(v.rt.from)||Cx(v.rt.from);const t3=Cx(v.rt.to)||(v.rt.toLat?{lat:v.rt.toLat,lng:v.rt.toLng,name:v.rt.toName||'?'}:null);
-      if(!f3||!t3)return;
-      const tn3=tripT(f3,t3,vt.spd);const pct3=Math.min(v.prog/(tn3||1),1);
-      const isReturn=v.cargo.returning;
-      h+='<div class="crd" style="border-left:3px solid #a855f7;background:rgba(168,85,247,.02)">';
-      h+='<div class="rw"><span>'+vt.em+' <b>'+vehName(v)+'</b> <span class="tg" style="background:rgba(168,85,247,.12);color:#a855f7;border-color:rgba(168,85,247,.25)">'+(isReturn?'🔙 Rückfahrt':'🤝 Allianzlieferung')+'</span>';
-      if(!isReturn&&v.cargo.good)h+=' <span class="sub">'+(GOODS[v.cargo.good]?.em||'')+' '+v.cargo.amt+'×</span>';
-      h+='</span><span class="eta">'+Math.floor(pct3*100)+'%</span></div>';
-      h+='<div class="sub">'+(f3.name||'?')+' → '+(t3.name||'?')+'</div>';
-      h+='<div class="pb"><div class="pf" style="width:'+pct3*100+'%;background:#a855f7"></div></div></div>'});}
-  el.innerHTML=h}
+      h+='<optgroup label="📍 Zielort">';
+      cities.forEach(function(x){h+='<option value="'+x.id+'">'+x.name+'</option>'});
+      h+='</optgroup></select>';
+      h+='</div>';
+    }
 
-// ═══ WARENTRANSFER TAB ═══
+    h+='</div>';
+  });
+
+  render(unsafeHTML(h),el);
+}
 function compTransfer(el){
   let h=tabHead('routes','📦 Warentransfer','Waren zwischen eigenen Standorten versenden');
   h+='<button class="btn sm" class="mb8b" onclick="routesSub=\'all\';routesShowAll=true;renComp()">← Zurück zu Aufträge</button>';
@@ -10040,7 +10057,7 @@ function _soPopupRender(popup){
   h+='<div style="text-align:center;margin-bottom:10px"><span style="font-size:24px">🔄</span>';
   h+='<div class="mono-hero">Neuer Dauerauftrag</div></div>';
   h+='<div style="display:flex;gap:4px;justify-content:center;margin-bottom:14px">';
-  ['Route','Fahrzeuge','Waren'].forEach((l,i)=>{h+='<div style="padding:3px 12px;border-radius:8px;font-size:11px;font-weight:600;background:'+(i+1<=st.step?'rgba(61,214,140,.15);color:var(--a)':'rgba(255,255,255,.05);color:var(--td)')+'">'+l+'</div>'});
+  ['Route','Waren','Fahrzeuge'].forEach((l,i)=>{h+='<div style="padding:3px 12px;border-radius:8px;font-size:11px;font-weight:600;background:'+(i+1<=st.step?'rgba(61,214,140,.15);color:var(--a)':'rgba(255,255,255,.05);color:var(--td)')+'">'+l+'</div>'});
   h+='</div>';
 
   // ═══ STEP 1: Route ═══
@@ -10056,93 +10073,102 @@ function _soPopupRender(popup){
         const sel=st.to===c.id;const fc=C(st.from);const dist=fc?fdist(fc,c):0;
         h+='<div class="crd" style="padding:5px 10px;cursor:pointer;'+(sel?'border-color:var(--a);background:rgba(61,214,140,.06)':'')+'" onclick="const p=document.getElementById(\'soPopup\');p._state.to=\''+c.id+'\';_soPopupRender(p)">';
         h+='<div class="rw"><span>'+(sel?'✅ ':'')+'📍 '+c.name+' <span class="sub">'+dist+' km</span></span><span style="font-size:12px">📦 '+used+'/'+cap+'</span></div></div>'});
-      if(st.to)h+='<button class="btn full" class="btn-success" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">Weiter → Fahrzeuge</button>';
+      if(st.to)h+='<button class="btn full" class="btn-success" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">Weiter → Waren</button>';
     }
   }
 
-  // ═══ STEP 2: Vehicles ═══
+  // ═══ STEP 2: Goods selection ═══
   if(st.step===2){
     const fc=C(st.from);const tc=C(st.to);
     h+='<button class="btn sm" class="mb8b" onclick="const p=document.getElementById(\'soPopup\');p._state.step=1;_soPopupRender(p)">← Route ändern</button>';
     h+='<div class="crd" class="crd-green-mb"><div style="font-size:13px">'+(fc?.name||'?')+' → '+(tc?.name||'?')+'</div></div>';
-    h+='<div class="fw6 mb6">② Fahrzeuge auswählen</div>';
-    h+=sub('Diese Fahrzeuge pendeln FEST zwischen den Standorten. Sie sind für andere Aufträge gesperrt.','margin-bottom:6px;color:var(--td)');
-    // All idle vehicles (not already SO-bound to OTHER orders)
-    const allIdle=G.vehs.filter(v=>v.st==='idle'&&!isSOBound(v));
-    const atFrom=allIdle.filter(v=>v.loc===st.from);
-    const elsewhere=allIdle.filter(v=>v.loc!==st.from);
-    const totalCap=st.vehIds.reduce((s2,vid)=>{const v=findVehicle(vid);return s2+(v?vehCap(v):0)},0);
-    h+='<div id="soCapInfo" style="padding:6px 10px;border-radius:8px;background:rgba(61,214,140,.06);border:1px solid rgba(61,214,140,.15);font-size:12px;margin-bottom:8px">';
-    h+='🚛 <b>'+st.vehIds.length+'</b> Fahrzeuge · Kapazität: <b>'+totalCap+'×</b> pro Fahrt</div>';
-    if(atFrom.length){h+='<div class="sub" style="font-weight:600;margin-bottom:3px">📍 '+(fc?.name||'?')+'</div>';
-      atFrom.forEach(v=>{const vt=VT[v.type];const checked=st.vehIds.includes(v.id);
-        h+='<label class="crd" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:5px 8px"><input type="checkbox" '+(checked?'checked':'')+' onchange="_soToggleVeh(\''+v.id+'\',this.checked)" style="width:16px;height:16px;accent-color:var(--a)"/><span style="flex:1">'+vt.em+' <b>'+vehName(v)+'</b> · Kap: '+vehCap(v)+'</span></label>'});}
-    if(elsewhere.length){h+='<div class="sub" style="font-weight:600;margin-top:6px;margin-bottom:3px;color:var(--a2)">📍 Andere Standorte <span style="font-weight:400">(werden automatisch geholt)</span></div>';
-      elsewhere.forEach(v=>{const vt=VT[v.type];const loc=C(v.loc);const checked=st.vehIds.includes(v.id);
-        h+='<label class="crd" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:5px 8px;border-color:rgba(56,189,248,.15)"><input type="checkbox" '+(checked?'checked':'')+' onchange="_soToggleVeh(\''+v.id+'\',this.checked)" style="width:16px;height:16px;accent-color:var(--a2)"/><span style="flex:1">'+vt.em+' <b>'+vehName(v)+'</b> · Kap: '+vehCap(v)+' · 📍 '+(loc?.name||'?')+'</span></label>'});}
-    if(!allIdle.length)h+=sub('Keine freien Fahrzeuge verfügbar','text-align:center;padding:12px;color:var(--r)');
-    if(st.vehIds.length)h+='<button class="btn full" class="btn-success" onclick="const p=document.getElementById(\'soPopup\');p._state.step=3;_soPopupRender(p)">Weiter → Waren ('+totalCap+'× Kapazität)</button>';
-  }
-
-  // ═══ STEP 3: Goods with capacity slider ═══
-  if(st.step===3){
-    const fc=C(st.from);const tc=C(st.to);
-    const totalCap=st.vehIds.reduce((s2,vid)=>{const v=findVehicle(vid);return s2+(v?vehCap(v):0)},0);
-    h+='<button class="btn sm" class="mb8b" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">← Fahrzeuge ändern</button>';
-    h+='<div class="crd" class="crd-green-mb">';
-    h+='<div style="font-size:13px">'+(fc?.name||'?')+' → '+(tc?.name||'?')+' · 🚛 '+st.vehIds.length+' Fzg · Kap: '+totalCap+'×</div></div>';
-    h+='<div class="fw6 mb6">③ Waren & Mengen</div>';
-    h+='<div class="sub" style="margin-bottom:8px;color:var(--td)">Wähle Waren und Mengen. Gesamtmenge darf Fahrzeugkapazität ('+totalCap+'×) nicht überschreiten.</div>';
-    // Current goods in state
-    let usedCap=st.goods.reduce((s2,g)=>s2+g.amt,0);
+    h+='<div class="fw6 mb6">② Waren auswählen</div>';
+    h+='<div class="sub" style="margin-bottom:8px;color:var(--td)">Wähle die Waren für diesen Dauerauftrag. Mengen werden im nächsten Schritt angepasst.</div>';
     // Available goods at source
     const srcGoods=Object.entries(G.stor[st.from]||{}).filter(([,a])=>a>0);
-    // Also check building local storage
     const bldGoods={};(G.blds[st.from]||[]).forEach(b=>{if(b.localStor)Object.entries(b.localStor).forEach(([g,a])=>{if(a>0)bldGoods[g]=(bldGoods[g]||0)+a})});
     const allAvail={};srcGoods.forEach(([g,a])=>{allAvail[g]=(allAvail[g]||0)+a});Object.entries(bldGoods).forEach(([g,a])=>{allAvail[g]=(allAvail[g]||0)+a});
-    // Also show goods that are produced here
     const producedHere=new Set();
     (G.blds[st.from]||[]).forEach(b=>{const d=BLD[b.type];if(!d||b.paused)return;
       if(d.prod){producedHere.add(d.prod);if(!allAvail[d.prod])allAvail[d.prod]=0;}
       if(d.tp==='farm'){producedHere.add('getreide');allAvail['getreide']=allAvail['getreide']||0;}
     });
-    // Render existing goods
-    st.goods.forEach((g,i)=>{const gd=GOODS[g.good];const maxForThis=Math.min(totalCap-usedCap+g.amt,allAvail[g.good]||999);
-      h+='<div style="display:flex;gap:6px;align-items:center;padding:6px 8px;margin:4px 0;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid var(--bd)">';
+    // Show selected goods
+    st.goods.forEach((g,i)=>{const gd=GOODS[g.good];
+      const sw3=fc&&tc?specWarn(g.good,Math.round(hav(fc.lat,fc.lng,tc.lat,tc.lng))):null;
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin:3px 0;border-radius:8px;background:rgba(61,214,140,.04);border:1px solid rgba(61,214,140,.15)">';
       h+='<span style="font-size:14px">'+(gd?.em||'')+'</span>';
-      h+='<span style="flex:1;font-size:12px;font-weight:600">'+(gd?.name||g.good)+'</span>';
-      h+='<input type="range" min="1" max="'+maxForThis+'" value="'+g.amt+'" style="flex:2;accent-color:var(--a)" oninput="const p=document.getElementById(\'soPopup\');p._state.goods['+i+'].amt=parseInt(this.value,10);this.nextElementSibling.textContent=this.value+\'×\';_soUpdateCap()"/>';
-      h+='<span style="font-family:var(--mono);font-size:13px;min-width:40px;text-align:right">'+g.amt+'×</span>';
+      h+='<span style="flex:1;font-size:12px;font-weight:600">'+(gd?.name||g.good);
+      if(sw3)h+=' <span style="font-size:10px;color:var(--go)">'+sw3+'</span>';
+      h+='</span>';
       h+='<button class="btn sm" style="color:var(--r);padding:2px 6px" onclick="const p=document.getElementById(\'soPopup\');p._state.goods.splice('+i+',1);_soPopupRender(p)">✕</button>';
       h+='</div>'});
-    // Capacity bar
-    h+='<div style="margin:8px 0"><div class="rw" style="font-size:11px"><span>Beladen: '+usedCap+'/'+totalCap+'×</span><span style="color:'+(usedCap>totalCap?'var(--r)':'var(--a)')+'">'+Math.round(usedCap/totalCap*100)+'%</span></div>';
-    h+='<div class="pb" style="height:5px"><div class="pf" style="width:'+Math.min(100,usedCap/totalCap*100)+'%;background:'+(usedCap>totalCap?'var(--r)':'var(--a)')+'"></div></div></div>';
-    // Spec transport warning
-    if(st.goods.length&&fc&&tc){
-      const soDist2=Math.round(hav(fc.lat,fc.lng,tc.lat,tc.lng));
-      const specIssues=[];
-      st.goods.forEach(g=>{const sw3=specWarn(g.good,soDist2);if(!sw3)return;
-        const anyCanCarry=st.vehIds.some(vid=>{const v2=findVehicle(vid);return v2&&canVehCarry(v2,g.good,soDist2)});
-        if(!anyCanCarry)specIssues.push((GOODS[g.good]?.em||'')+' '+(GOODS[g.good]?.name||g.good)+': '+sw3);
-      });
-      if(specIssues.length)h+='<div style="padding:6px 8px;border-radius:8px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);font-size:11px;color:var(--r);margin-top:4px">⚠️ Kein zugewiesenes Fahrzeug kann transportieren:<br>'+specIssues.join('<br>')+'</div>';
-    }
     // Add goods dropdown
     const unselected=Object.entries(allAvail).filter(([g])=>!st.goods.find(x=>x.good===g)&&GOODS[g]);
     if(unselected.length){
-      h+='<select class="sl" style="width:100%;font-size:12px;padding:4px 8px;margin-top:4px" onchange="if(this.value){const p=document.getElementById(\'soPopup\');const rem='+totalCap+'-p._state.goods.reduce((s,g)=>s+g.amt,0);p._state.goods.push({good:this.value,amt:Math.max(1,Math.min(rem,10))});_soPopupRender(p)}">';
+      h+='<select class="sl" style="width:100%;font-size:12px;padding:4px 8px;margin-top:4px" onchange="if(this.value){const p=document.getElementById(\'soPopup\');p._state.goods.push({good:this.value,amt:10});_soPopupRender(p)}">';
       h+='<option value="">+ Ware hinzufügen...</option>';
       unselected.sort((a,b)=>b[1]-a[1]).forEach(([g,a])=>{const gd=GOODS[g];const lbl=a>0?a+'× verfügbar':(producedHere.has(g)?'🏭 wird produziert':'0×');h+='<option value="'+g+'">'+(gd?.em||'')+' '+gd?.name+' ('+lbl+')</option>'});
       h+='</select>';}
-    // Create button
-    // Create button + auto-reserve option
-    if(st.goods.length&&usedCap<=totalCap){
-      h+='<label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:12px"><input type="checkbox" id="soAutoRes" checked><span>📋 Automatisch Lagerplatz am Ziel reservieren</span></label>';
-      h+='<button class="btn full" style="margin-top:8px;padding:10px;font-size:14px;background:var(--a);color:var(--bg);border-color:var(--a)" onclick="_soCreate()">🔄 Dauerauftrag anlegen</button>';
-    }
-    else if(st.goods.length)h+='<div style="padding:8px;text-align:center;color:var(--r);font-size:12px">⚠️ Kapazität überschritten! Reduziere Mengen.</div>';
+    if(st.goods.length)h+='<button class="btn full" class="btn-success" style="margin-top:8px" onclick="const p=document.getElementById(\'soPopup\');p._state.step=3;_soPopupRender(p)">Weiter → Fahrzeuge</button>';
     else h+='<div style="padding:8px;text-align:center;color:var(--td);font-size:12px">Wähle mindestens eine Ware</div>';
+  }
+
+  // ═══ STEP 3: Vehicles (filtered by goods spec) ═══
+  if(st.step===3){
+    const fc=C(st.from);const tc=C(st.to);
+    const soDist=fc&&tc?Math.round(hav(fc.lat,fc.lng,tc.lat,tc.lng)):0;
+    h+='<button class="btn sm" class="mb8b" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">← Waren ändern</button>';
+    h+='<div class="crd" class="crd-green-mb">';
+    h+='<div style="font-size:13px">'+(fc?.name||'?')+' → '+(tc?.name||'?')+' · '+st.goods.map(g=>(GOODS[g.good]?.em||'')).join(' ')+'</div></div>';
+    h+='<div class="fw6 mb6">③ Fahrzeuge auswählen</div>';
+    // Determine spec requirements from selected goods
+    const neededSpecs=new Set();
+    st.goods.forEach(g=>{const gd=GOODS[g.good];if(gd&&gd.transport&&soDist>=(SPEC_DIST[gd.transport]||0))neededSpecs.add(gd.transport)});
+    if(neededSpecs.size){
+      h+='<div style="padding:6px 8px;border-radius:8px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.15);font-size:11px;color:var(--go);margin-bottom:8px">';
+      h+='⚠️ Benötigt: '+[...neededSpecs].map(s=>SPEC_LABELS[s]||s).join(', ')+' ('+soDist+' km Strecke)</div>';
+    }
+    h+=sub('Nur Fahrzeuge die alle Waren transportieren können werden angezeigt.','margin-bottom:6px;color:var(--td)');
+    // Filter vehicles: must be able to carry ALL selected goods
+    const allIdle=G.vehs.filter(v=>v.st==='idle'&&!isSOBound(v));
+    const canCarryAll=allIdle.filter(v=>{return st.goods.every(g=>canVehCarry(v,g.good,soDist))});
+    const cantCarry=allIdle.filter(v=>{return !st.goods.every(g=>canVehCarry(v,g.good,soDist))});
+    const atFrom=canCarryAll.filter(v=>v.loc===st.from);
+    const elsewhere=canCarryAll.filter(v=>v.loc!==st.from);
+    const totalCap=st.vehIds.reduce((s2,vid)=>{const v=findVehicle(vid);return s2+(v?vehCap(v):0)},0);
+    const usedCap=st.goods.reduce((s2,g)=>s2+g.amt,0);
+    h+='<div style="padding:6px 10px;border-radius:8px;background:rgba(61,214,140,.06);border:1px solid rgba(61,214,140,.15);font-size:12px;margin-bottom:8px">';
+    h+='🚛 <b>'+st.vehIds.length+'</b> Fahrzeuge · Kapazität: <b>'+totalCap+'×</b></div>';
+    if(atFrom.length){h+='<div class="sub" style="font-weight:600;margin-bottom:3px">📍 '+(fc?.name||'?')+'</div>';
+      atFrom.forEach(v=>{const vt=VT[v.type];const checked=st.vehIds.includes(v.id);
+        h+='<label class="crd" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:5px 8px"><input type="checkbox" '+(checked?'checked':'')+' onchange="_soToggleVeh(\''+v.id+'\',this.checked)" style="width:16px;height:16px;accent-color:var(--a)"/><span style="flex:1">'+vt.em+' <b>'+vehName(v)+'</b>'+(vt.spec?' <span style="font-size:10px;color:var(--go)">'+SPEC_LABELS[vt.spec]+'</span>':'')+' · Kap: '+vehCap(v)+'</span></label>'});}
+    if(elsewhere.length){h+='<div class="sub" style="font-weight:600;margin-top:6px;margin-bottom:3px;color:var(--a2)">📍 Andere Standorte</div>';
+      elsewhere.forEach(v=>{const vt=VT[v.type];const loc=C(v.loc);const checked=st.vehIds.includes(v.id);
+        h+='<label class="crd" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:5px 8px;border-color:rgba(56,189,248,.15)"><input type="checkbox" '+(checked?'checked':'')+' onchange="_soToggleVeh(\''+v.id+'\',this.checked)" style="width:16px;height:16px;accent-color:var(--a2)"/><span style="flex:1">'+vt.em+' <b>'+vehName(v)+'</b>'+(vt.spec?' <span style="font-size:10px;color:var(--go)">'+SPEC_LABELS[vt.spec]+'</span>':'')+' · Kap: '+vehCap(v)+' · 📍 '+(loc?.name||'?')+'</span></label>'});}
+    if(cantCarry.length){h+='<div class="sub" style="font-weight:600;margin-top:6px;margin-bottom:3px;color:var(--td);opacity:.5">🚫 Nicht geeignet ('+cantCarry.length+')</div>';
+      cantCarry.slice(0,3).forEach(v=>{const vt=VT[v.type];
+        h+='<div class="crd" style="padding:5px 8px;opacity:.35"><span>'+vt.em+' '+vehName(v)+' · Kap: '+vehCap(v)+'</span></div>'});}
+    if(!canCarryAll.length)h+=sub('Keine passenden Fahrzeuge! Kaufe im Händler ein Fahrzeug mit dem richtigen Tag.','text-align:center;padding:12px;color:var(--r)');
+    // Goods amount sliders (now that we know capacity)
+    if(st.vehIds.length){
+      h+='<div class="fw6" style="margin-top:10px;margin-bottom:6px">📦 Mengen (max '+totalCap+'× pro Fahrt)</div>';
+      st.goods.forEach((g,i)=>{const gd=GOODS[g.good];const maxForThis=Math.max(1,totalCap-usedCap+g.amt);
+        h+='<div style="display:flex;gap:6px;align-items:center;padding:4px 8px;margin:3px 0;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid var(--bd)">';
+        h+='<span style="font-size:13px">'+(gd?.em||'')+'</span>';
+        h+='<span style="flex:1;font-size:11px;font-weight:600">'+(gd?.name||g.good)+'</span>';
+        h+='<input type="range" min="1" max="'+maxForThis+'" value="'+g.amt+'" style="flex:2;accent-color:var(--a)" oninput="const p=document.getElementById(\'soPopup\');p._state.goods['+i+'].amt=parseInt(this.value,10);this.nextElementSibling.textContent=this.value+\'×\';_soUpdateCap()"/>';
+        h+='<span style="font-family:var(--mono);font-size:12px;min-width:36px;text-align:right">'+g.amt+'×</span>';
+        h+='</div>'});
+      // Capacity bar
+      h+='<div style="margin:6px 0"><div class="rw" style="font-size:11px"><span>Beladen: '+usedCap+'/'+totalCap+'×</span><span style="color:'+(usedCap>totalCap?'var(--r)':'var(--a)')+'">'+Math.round(usedCap/totalCap*100)+'%</span></div>';
+      h+='<div class="pb" style="height:5px"><div class="pf" style="width:'+Math.min(100,usedCap/totalCap*100)+'%;background:'+(usedCap>totalCap?'var(--r)':'var(--a)')+'"></div></div></div>';
+      // Create button
+      if(usedCap<=totalCap){
+        h+='<label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:12px"><input type="checkbox" id="soAutoRes" checked><span>📋 Automatisch Lagerplatz am Ziel reservieren</span></label>';
+        h+='<button class="btn full" style="margin-top:8px;padding:10px;font-size:14px;background:var(--a);color:var(--bg);border-color:var(--a)" onclick="_soCreate()">🔄 Dauerauftrag anlegen</button>';
+      } else h+='<div style="padding:8px;text-align:center;color:var(--r);font-size:12px">⚠️ Kapazität überschritten! Reduziere Mengen.</div>';
+    }
   }
 
   h+='<button class="btn full" style="margin-top:8px;color:var(--td)" onclick="closePopup(\'soPopup\')">Abbrechen</button>';
@@ -10855,9 +10881,15 @@ async function showProfile(viewUser){
       h+='<span style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--a)">×'+n+'</span></div>'});}
 
   } else if(window._profTab==='goods'){
-    if(!data.topGoods||!data.topGoods.length)h+=sub('Noch keine Waren gehandelt','text-align:center;padding:12px');
-    else{data.topGoods.forEach(([g,n],i)=>{const gd=GOODS[g];if(!gd)return;
-      h+='<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03)"><span class="icon-cell">'+(i===0?'🥇':i===1?'🥈':'🥉')+'</span>';
+    // For own profile, compute all goods from history
+    var goodsData=data.topGoods;
+    if(isOwn&&G&&G.history){
+      var allGoods2={};(G.history||[]).forEach(function(h2){if(h2.good)allGoods2[h2.good]=(allGoods2[h2.good]||0)+(h2.amt||0)});
+      goodsData=Object.entries(allGoods2).sort(function(a,b){return b[1]-a[1]});
+    }
+    if(!goodsData||!goodsData.length)h+=sub('Noch keine Waren gehandelt','text-align:center;padding:12px');
+    else{goodsData.forEach(function(pair,i){var g=pair[0],n=pair[1];var gd=GOODS[g];if(!gd)return;
+      h+='<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03)"><span class="icon-cell">'+(i===0?'🥇':i===1?'🥈':i===2?'🥉':'')+'</span>';
       h+='<span style="flex:1;font-size:13px">'+(gd.em||'')+' '+gd.name+'</span>';
       h+='<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--a)">'+n.toLocaleString('de-DE')+'×</span></div>'});}
 
@@ -12123,7 +12155,9 @@ function compVehiclesOverview(el){
 
 // ═══ TOAST FEEDBACK ═══
 let _toastQueue=[];
-function toast(msg,color,duration){
+function toast(msg,color,duration,category){
+  // Check if this toast category is muted
+  if(category&&G&&G.toastOff&&G.toastOff[category])return;
   const dur=duration||2500;
   const t=document.createElement('div');
   const idx=_toastQueue.length;
@@ -12313,6 +12347,20 @@ function openSettings(){
     } else {
       h+=crd(sub('Noch nicht verfügbar (ab Level 8)','text-align:center;padding:4px'));
     }
+
+    // Toast notifications
+    h+=secLabel('🔔 Benachrichtigungen','margin-top:10px');
+    if(!G.toastOff)G.toastOff={};
+    var toastCats=[
+      ['delivery','✅ Lieferung abgeschlossen','Auftrag geliefert, Belohnung erhalten'],
+      ['order','📋 Auftrags-Updates','Angenommen, storniert, abgelaufen'],
+      ['vehicle','🚛 Fahrzeug-Updates','Zuweisung, Rückkehr, Wartung'],
+      ['production','🏭 Produktion','Lager voll, Engpässe, Reservierungen'],
+      ['event','🌍 Events','Krisen, Booms, globale Events']
+    ];
+    toastCats.forEach(function(tc2){var id2=tc2[0],lbl2=tc2[1],desc=tc2[2];
+      h+=crd(chk(!G.toastOff[id2],'if(!G.toastOff)G.toastOff={};G.toastOff.'+id2+'=!this.checked;save()',lbl2,desc));
+    });
 
   } else if(tab==='system'){
     h+=secLabel('Konto');
