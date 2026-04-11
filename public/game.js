@@ -1,4 +1,4 @@
-// LogistiX — Build U593FD — 2026-04-11 09:40
+// LogistiX — Build U5ECOU — 2026-04-11 09:44
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -4463,8 +4463,8 @@ function tickCore(){
     else if(v.st==='moving')_moving.push(v);
   });
   // ── Per-tick order index ──
-  const _accOrders=_accOrders;
-  const _openOrders=_openOrders;
+  const _accOrders=G.orders.filter(o=>o.acc);
+  const _openOrders=G.orders.filter(o=>!o.acc);
 
   // ── Supply epoch reset every 24h (86400 ticks) ──
   const epoch=Math.floor(G.tick/86400);
