@@ -87,7 +87,12 @@ function stripModuleSyntax(code) {
 }
 
 // ── Concatenate all JS ──
-let gameJs = `// LogistiX — Build ${BUILD_ID} — ${BUILD_TS}\n`;
+let gameJs = `// LogistiX — Build ${BUILD_ID} — ${BUILD_TS}
+function bindAll(){} // stub — concat makes everything global
+function unsafeHTML(s){return s}
+function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
+function html(){return Array.from(arguments[0]).map((s,i)=>s+(i<arguments.length-1?arguments[i+1]:'')).join('')}
+`;
 
 for (const file of JS_FILES) {
   const full = path.join(DIR, file);
@@ -126,7 +131,7 @@ const head = fs.readFileSync(path.join(DIR, 'src/template_head.html'), 'utf8');
 const body = fs.readFileSync(path.join(DIR, 'src/template_body.html'), 'utf8');
 const css  = fs.readFileSync(path.join(DIR, 'src/css/main.css'), 'utf8');
 
-const stamp = `<div id="buildStamp" style="position:fixed;bottom:8px;right:12px;font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.15);pointer-events:none;z-index:1">Build ${BUILD_ID} · ${BUILD_TS}</div>`;
+const stamp = `<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build ${BUILD_ID}</div>`;
 
 const html = `${head}
 <style>
@@ -141,23 +146,7 @@ ${stamp}
 
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 
-// ── Minify ──
-if (!DEV) {
-  try {
-    const esbuild = await import('esbuild');
-    await esbuild.build({
-      entryPoints: [path.join(OUT, 'game.js')],
-      outfile: path.join(OUT, 'game.js'),
-      allowOverwrite: true,
-      minify: true,
-      target: ['es2022'],
-      logLevel: 'silent',
-    });
-    console.log('✅ Minified');
-  } catch (e) {
-    console.warn('⚠️  Minify skipped:', e.message);
-  }
-}
+// ── No minification — concat globals are incompatible with esbuild mangle ──
 
 const gameSize = (fs.statSync(path.join(OUT, 'game.js')).size / 1024).toFixed(1);
 const htmlSize = (fs.statSync(path.join(OUT, 'index.html')).size / 1024).toFixed(1);
