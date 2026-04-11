@@ -1,4 +1,4 @@
-// LogistiX — Build UN17NR — 2026-04-11 17:57
+// LogistiX — Build UN6ABN — 2026-04-11 18:01
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
