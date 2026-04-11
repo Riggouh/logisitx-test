@@ -1,4 +1,4 @@
-// LogistiX — Build U95NXF — 2026-04-11 11:29
+// LogistiX — Build U9E4CQ — 2026-04-11 11:36
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1670,7 +1670,9 @@ async function load(){
       const n=Math.min(off,repaired?600:28800);
       if(n>30){
         addLog('⏰ '+ftime(n)+' offline — Fahrzeuge haben weitergearbeitet');
+        window._lxCatchUp=true;
         for(let i=0;i<n;i++)tickCore();
+        window._lxCatchUp=false;
         addLog('✅ '+ftime(n)+' nachgeholt!');
       }
     } else {
@@ -4546,8 +4548,8 @@ function tickCore(){
   }
 
   // ── Events: synchronized across all players via shared storage ──
-  if(G.tick%60===0)_syncEvents(); // poll shared events every 60 ticks
-  if(G.tick%3600===0)_trySpawnEvent(); // attempt spawn every hour
+  if(G.tick%60===0&&!window._lxCatchUp)_syncEvents(); // poll shared events every 60 ticks
+  if(G.tick%3600===0&&!window._lxCatchUp)_trySpawnEvent(); // attempt spawn every hour
   // Clean expired events
   G.events=(G.events||[]).filter(e=>e.endTick>getTick());
 
@@ -4607,8 +4609,8 @@ function tickCore(){
   }
 
   // ── Player Marketplace: expiry + credit collection ──
-  if(G.tick%300===150){try{_pmCheckExpiry()}catch(e){}}
-  if(G.tick%120===90){try{_pmCollectCredits()}catch(e){}}
+  if(G.tick%300===150&&!window._lxCatchUp){try{_pmCheckExpiry()}catch(e){}}
+  if(G.tick%120===90&&!window._lxCatchUp){try{_pmCollectCredits()}catch(e){}}
 
   // ── Auto-Maintenance: queue vehicles below threshold ──
   if(G.autoMaint&&playerLvl()>=8&&G.tick%60===45){
@@ -4762,7 +4764,7 @@ function tickCore(){
   }
 
   // Balancing feedback (check every 60 ticks)
-  if(G.tick%60===30&&typeof _checkFeedbackTrigger==='function')try{_checkFeedbackTrigger()}catch(e){}
+  if(G.tick%60===30&&!window._lxCatchUp&&typeof _checkFeedbackTrigger==='function')try{_checkFeedbackTrigger()}catch(e){}
 
   // Standing orders (every 60s)
   if(G.tick%5===0&&G.standingOrders){
