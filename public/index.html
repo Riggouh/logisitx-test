@@ -994,7 +994,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
 <!-- ═══ LOGIN ═══ -->
 <div id="loginScreen"><div class="start-box">
   <div class="slogo">LOGISTI<b>X</b></div>
-  <div class="ssub">Baue dein globales Logistik-Imperium</div>
+  <div class="ssub">Baue dein globales Logistik-Imperium <span style="opacity:.4;font-size:11px">v2.1</span></div>
   <div id="authBox">
     <div id="authTabs" style="display:flex;gap:2px;margin-bottom:16px">
       <button class="auth-tab on" onclick="showAuth('login')">Anmelden</button>
@@ -8908,8 +8908,30 @@ function checkTutorial(){
   if(G.tutStep)_tutStep=G.tutStep;
   if(!G.tutDone&&_tutStep<TUT_STEPS.length)setTimeout(()=>showTutorial(),600);
 }
-const CHANGELOG_DATE='08.04.2026';
+const CHANGELOG_DATE='12.04.2026';
+const BUILD_VERSION='2.1.0';
 const CHANGELOG=[
+  {date:'12.04.2026',title:'v2.1 — Security Hardening & Code-Audit',items:[
+    '🔒 Server: Phase 1 — Key-Allowlist, Rate-Limiting (200/min/IP), CORS konfigurierbar, CSP-Header, Security-Header',
+    '🔒 Server: Phase 2 — Isolierte Dateien (users.json, admin.json), 7 Auth-Endpoints, Server-Hashing (SHA-256+Salt+timingSafeEqual), Session-Tokens',
+    '🔒 Server: Phase 3 — Per-User Save-Files (saves/), Schreibschutz (nur eigene lx_save_/lb:), Admin-Sessions, Auto-Migration',
+    '👥 Admin: Zugangs-Kontrolle — Admin-Userliste im Server, Menüpunkt nur für Admins sichtbar, Verwaltung unter Tools',
+    '🐛 Fix: sendBeacon Endpoint /api/ → /api/storage',
+    '🐛 Fix: _adminPanUI TDZ (Build-Reihenfolge)',
+    '🐛 Fix: CSP erlaubt OpenStreetMap DE-Tiles',
+    '🐛 Fix: pm_credit: + lx_cache Key-Prefixe in Allowlist',
+    '🐛 Fix: routes.js Stray } nach Arrow-Konversion',
+    '🐛 Fix: CSS Stray } entfernt',
+    '🔧 Code: function()→Arrow komplett (logistics.js, routes.js)',
+    '🔧 Code: Function-Stubs in build.sh (toast, ensureRoute, ua, uhud etc.)',
+    '🔧 Code: Alliance Optimistic Locking (_v Counter + 3 Retries)',
+    '🔧 Code: Build-Sync Kommentar zwischen build.sh und build.mjs',
+    '🎨 UI: --td Kontrast 3.89:1 → 4.6:1 (WCAG AA)',
+    '🎨 UI: prefers-reduced-motion Media Query',
+    '🎨 UI: color-scheme:dark Meta-Tag',
+    '🎨 UI: Touch Targets 44px Mobile / 36px Phone',
+    '🎨 UI: CSS-Variablen für z-index (11 Layer) + Farben (--purple, --orange, --a-bright)',
+  ]},
   {date:'08.04.2026',title:'Tab-Audit: UI-Konsolidierung & Produktionssteuerung',items:[
     '📦 Lager: Produktions-Annotation (+X/min) bei jeder lokal produzierten Ware',
     '⚠️ Lager: Engpass-Warnung wenn Gebäude-Inputs bei 0 (z.B. "Mehl fehlt → Bäckerei")',
@@ -9140,7 +9162,7 @@ const CHANGELOG=[
 function showChangelog(){
   let h='<div class="center-mb12"><span style="font-size:28px">📋</span>';
   h+='<div class="mono-hero">Changelog</div>';
-  h+='<div class="sub">Letzte Änderung am: '+CHANGELOG_DATE+'</div></div>';
+  h+='<div class="sub">Version '+BUILD_VERSION+' · Letzte Änderung am: '+CHANGELOG_DATE+'</div></div>';
   CHANGELOG.forEach(v=>{
     h+='<div class="mb12b">';
     h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--bd)">';
@@ -13774,6 +13796,191 @@ function bulkMaintainVehs(){
   renComp();
 }
 // ══════════════════════════════════════════
+// ADMIN CORE – log, auth, keyboard shortcut
+// ══════════════════════════════════════════
+
+// ── Admin panel UI callbacks (implemented in ui/game_bindings.js) ──
+
+const _adminPanUI={
+  getOrCreatePanel:()=>null,
+  setLoginHtml:(h)=>{},
+  setAdminHtml:(h)=>{},
+  getPasswordInput:()=>'',
+  setPasswordError:(msg)=>{},
+};
+function registerAdminPanUI(cbs){Object.assign(_adminPanUI,cbs)}
+
+
+// ══════════════════════════════════════════
+// ADMIN PANEL v2 – Explorer UI with player details
+// ══════════════════════════════════════════
+
+let adminOpen=false;
+const _adminLog=[];
+const ADMIN_MAX_LOG=500;
+
+function adminLog(type,msg,data){
+  _adminLog.unshift({ts:Date.now(),type,msg,data:data||null,user:currentUser||'—'});
+  if(_adminLog.length>ADMIN_MAX_LOG)_adminLog.pop();
+  saveAdminLog();
+}
+async function saveAdminLog(){try{await storeSet('lx_admin_log',JSON.stringify(_adminLog.slice(0,300)),true)}catch(e){}}
+async function loadAdminLog(){try{const r=await storeGet('lx_admin_log',true);if(r){const d=JSON.parse(r);if(Array.isArray(d))_adminLog.push(...d)}}catch(e){}}
+
+const _origAddLog=addLog;
+addLog=function(m){_origAddLog(m);adminLog('game',m)};
+
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.shiftKey&&(e.key==='A'||e.key==='a'||e.code==='KeyA')){e.preventDefault();toggleAdmin()}
+});
+
+// NOTE: Default-PW wird nur beim ersten Start verwendet. Nach Änderung im Admin-Panel
+// wird der Hash in lx_admin_hash_v2 überschrieben und dieser Default ignoriert.
+const ADMIN_PASS_DEFAULT=['yo','shd','us','20','26'].join('');
+let _adminHash=null;
+async function getAdminHash(){
+  if(_adminHash)return _adminHash;
+  try{const stored=await storeGet('lx_admin_hash_v2',true);if(stored){_adminHash=JSON.parse(stored);return _adminHash}}catch(e){}
+  // Migration: check personal storage
+  try{const personal=await storeGet('lx_admin_hash_v2',false);if(personal){_adminHash=JSON.parse(personal);await storeSet('lx_admin_hash_v2',JSON.stringify(_adminHash),true);return _adminHash}}catch(e){}
+  // First time: hash default
+  const{hash,salt}=await hashPassword(ADMIN_PASS_DEFAULT);
+  _adminHash={hash,salt};
+  try{await storeSet('lx_admin_hash_v2',JSON.stringify(_adminHash),true)}catch(e){}
+  return _adminHash;
+}
+let adminAuthed=false;
+let adminTab='overview';
+let adminSelPlayer=null;
+
+function toggleAdmin(){
+  adminOpen=!adminOpen;
+  const panel=_adminPanUI.getOrCreatePanel(adminOpen);
+  if(!adminOpen)return;
+  if(!adminAuthed){
+    const loginHtml='<div class="admin-frame" style="max-width:400px;height:auto"><div class="admin-bar"><span class="admin-title">🔐 Admin-Login</span><button class="admin-close" onclick="toggleAdmin()">✕</button></div><div class="admin-body" style="padding:24px"><input type="password" id="adminPwInput" class="auth-input" placeholder="Admin-Passwort" style="margin-bottom:12px" "/><button class="btn full" onclick="adminLogin()">Anmelden</button><div id="adminPwErr" style="color:var(--r);text-align:center;margin-top:8px;font-size:13px"></div></div></div>';
+    _adminPanUI.setLoginHtml(loginHtml);
+    return;
+  }
+  renderAdmin();
+}
+async function adminLogin(){
+  try{
+  const pwVal=_adminPanUI.getPasswordInput();
+  // ── Server auth (Phase 2) ──
+  if(window.serverAuth?.available){
+    try{
+      const res=await window.serverAuth.adminLogin(pwVal);
+      if(res.ok){
+        adminAuthed=true;adminLog('admin','🔑 Admin-Login: '+sanitize(currentUser));
+        if(res.defaultPw)window._adminDefaultPw=true;
+        renderAdmin();return;
+      }
+      _adminPanUI.setPasswordError('❌ Falsches Passwort');return;
+    }catch(e){console.warn('Server admin auth failed, falling back:',e)}
+  }
+  // ── Client fallback ──
+  const rlKey='admin_'+(currentUser||'anon');
+  if(!await checkRateLimit(rlKey)){
+    _adminPanUI.setPasswordError('❌ Zu viele Versuche. Warte 5 Minuten.');
+    adminLog('admin','⚠️ Admin-Rate-Limit: '+(currentUser||'anon'));return;
+  }
+  const stored=await getAdminHash();
+  const{hash}=await hashPassword(pwVal,stored.salt);
+  if(hash===stored.hash){
+    await clearRateLimit(rlKey);adminAuthed=true;
+    adminLog('admin','🔑 Admin-Login: '+sanitize(currentUser));
+    const defCheck=await hashPassword(ADMIN_PASS_DEFAULT,stored.salt);
+    if(defCheck.hash===stored.hash)window._adminDefaultPw=true;
+    renderAdmin();
+  } else {
+    _adminPanUI.setPasswordError('❌ Falsches Passwort');
+    adminLog('admin','❌ Admin-Login fehlgeschlagen: '+currentUser);
+  }
+  }catch(e){console.warn('Admin error:',e);if(typeof toast==='function')toast('❌ Fehler: '+e.message,'var(--r)')}
+}
+function setAdminTab(t){adminTab=t;adminSelPlayer=null;renderAdmin()}
+async function changeAdminPw(newPw){
+  if(!newPw||newPw.length<4){if(typeof toast==='function')toast('❌ Mindestens 4 Zeichen','var(--r)');return}
+  if(window.serverAuth?.available){
+    try{const oldPw=prompt('Aktuelles Admin-Passwort:');if(!oldPw)return;
+      const res=await window.serverAuth.adminChangePw(oldPw,newPw);
+      if(res.ok){window._adminDefaultPw=false;if(typeof toast==='function')toast('🔒 Admin-Passwort geändert!','var(--a)');renderAdmin();return}
+      if(typeof toast==='function')toast('❌ Falsches aktuelles Passwort','var(--r)');return;
+    }catch(e){console.warn('Server admin pw change failed:',e)}
+  }
+  const{hash,salt}=await hashPassword(newPw);
+  _adminHash={hash,salt};
+  try{await storeSet('lx_admin_hash_v2',JSON.stringify(_adminHash),true)}catch(e){}
+  window._adminDefaultPw=false;
+  if(typeof toast==='function')toast('🔒 Admin-Passwort geändert!','var(--a)');renderAdmin();
+}
+
+// ═══ DEDUP SIDEBAR ═══
+function _adminSidebar(users,userKeys,saves){
+  let h='<div style="width:200px;min-width:200px;border-right:1px solid var(--bd);overflow-y:auto;padding:6px;display:flex;flex-direction:column">';
+  h+='<input type="text" class="sl" id="adminPlayerSearch" placeholder="🔍 Spieler..." style="font-size:11px;margin-bottom:6px;padding:4px 8px" oninput="window._adminPlayerFilter=this.value.toLowerCase();renderAdmin()">';
+  h+='<div style="font-family:var(--mono);font-size:10px;color:var(--td);padding:2px 8px;margin-bottom:4px">'+userKeys.length+' Spieler</div>';
+  h+='<div style="flex:1;overflow-y:auto">';
+  const filter=(window._adminPlayerFilter||'').toLowerCase();
+  userKeys.forEach(k=>{
+    const u=users[k];const sel=adminSelPlayer===k;
+    const name=sanitize(u.user||k);
+    if(filter&&!name.toLowerCase().includes(filter))return;
+    const sv=saves?saves[k]:null;
+    const lvl=sv?.level||1;const li=LEVELS[lvl-1];
+    const money=sv?fmt(sv.money||0):'—';
+    const isOn=sv?sv.onDuty!==false:false;
+    h+='<div style="padding:5px 8px;cursor:pointer;border-radius:8px;font-size:12px;margin-bottom:2px;transition:.1s;'+(sel?'background:rgba(61,214,140,.1);border:1px solid rgba(61,214,140,.3)':'border:1px solid transparent')+'" onclick="adminSelPlayer=\''+k+'\';renderAdmin()">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:'+(sel?'var(--a)':'var(--t)')+'">'+name+'</span>';
+    h+='<span style="font-size:10px">'+(isOn?'🟢':'🔴')+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--td)"><span>'+(li?.em||'')+' Lv'+lvl+'</span><span>💰 '+money+'</span></div>';
+    h+='</div>'});
+  h+='</div></div>';
+  return h;
+}
+
+// ═══ CHEAT/ANOMALY DETECTION ═══
+function _adminScanAlerts(saves,users){
+  const alerts=[];
+  Object.entries(saves).forEach(([k,sv])=>{
+    if(!sv)return;const name=users[k]?.user||k;
+    // 1. Unrealistic money (>50M at low level or negative >1M)
+    if(sv.money>50000000&&(sv.level||1)<10)alerts.push({sev:'high',icon:'💰',player:name,key:k,msg:'Unrealistisch hohes Geld: '+fmt(sv.money)+' bei Level '+(sv.level||1)});
+    if(sv.money<-1000000)alerts.push({sev:'med',icon:'💸',player:name,key:k,msg:'Extreme Schulden: '+fmt(sv.money)});
+    // 2. Earnings/hour too high
+    if(sv._stats?.length>=2){const recent=sv._stats.slice(-12);if(recent.length>=2){
+      const dt=(recent[recent.length-1].ts-recent[0].ts)/3600000;
+      if(dt>0){const earnRate=((recent[recent.length-1].w||0)-(recent[0].w||0))/dt;
+        if(earnRate>5000000)alerts.push({sev:'high',icon:'📈',player:name,key:k,msg:'Verdienst '+fmt(Math.round(earnRate))+'/h — ungewöhnlich hoch'});
+      }}}
+    // 3. Level too high for deliveries
+    const expDels=[0,3,8,18,30,50,80,120,180,300,450,600,800,1100,1500];
+    if((sv.level||1)>1&&(sv.dels||0)<expDels[Math.min((sv.level||1)-1,14)]*0.3)
+      alerts.push({sev:'med',icon:'🏆',player:name,key:k,msg:'Level '+(sv.level||1)+' aber nur '+(sv.dels||0)+' Lieferungen — mögl. Level-Manipulation'});
+    // 4. Too many vehicles for level
+    const maxVehs=Math.min(5+(sv.level||1)*4,80);
+    if((sv.vehs||[]).length>maxVehs)alerts.push({sev:'med',icon:'🚛',player:name,key:k,msg:(sv.vehs||[]).length+' Fahrzeuge bei Level '+(sv.level||1)+' (max ~'+maxVehs+')'});
+    // 5. NaN values
+    ['money','earned','dels','tick'].forEach(f=>{
+      if(typeof sv[f]==='number'&&isNaN(sv[f]))alerts.push({sev:'high',icon:'⚠️',player:name,key:k,msg:'NaN in Feld: '+f});
+    });
+    // 6. Corrupted orders
+    const badOrds=(sv.orders||[]).filter(o=>!o||!o.good||typeof o.rew!=='number'||isNaN(o.rew));
+    if(badOrds.length)alerts.push({sev:'med',icon:'📋',player:name,key:k,msg:badOrds.length+' korrupte Aufträge'});
+    // 7. Vehicles stuck (moving but no route)
+    const stuckVehs=(sv.vehs||[]).filter(v=>v.st==='moving'&&!v.rt);
+    if(stuckVehs.length)alerts.push({sev:'med',icon:'🚛',player:name,key:k,msg:stuckVehs.length+' Fahrzeuge stecken fest (moving ohne Route)'});
+    // 8. Unrealistic company value
+    const bldCount=Object.values(sv.blds||{}).flat().length;
+    const vehCount=(sv.vehs||[]).length;
+    if(bldCount+vehCount<3&&(sv.earned||0)>500000)
+      alerts.push({sev:'low',icon:'🔍',player:name,key:k,msg:'Hohe Einnahmen ('+fmt(sv.earned||0)+') mit wenig Infrastruktur ('+bldCount+' Geb, '+vehCount+' Fzg)'});
+  });
+  return alerts.sort((a,b)=>{const p={high:0,med:1,low:2};return(p[a.sev]||3)-(p[b.sev]||3)});
+}
+
+// ══════════════════════════════════════════
 // GAME BINDINGS – DOM implementations for all game/ UI callbacks
 // Registers: _screenUI, _pmUI, _orderUI, _vehUI, _economyUI,
 //            _adminPanUI, _adminActUI, _dutyUI, _citySellUI, _marketSellUI
@@ -14102,191 +14309,6 @@ function openSettings(){
   h+=btnFull('closePopup(\'settingsPopup\')','Schließen','sec') ;
   createPopup('settingsPopup',h,{maxWidth:'480px'});
 }
-// ══════════════════════════════════════════
-// ADMIN CORE – log, auth, keyboard shortcut
-// ══════════════════════════════════════════
-
-// ── Admin panel UI callbacks (implemented in ui/game_bindings.js) ──
-
-const _adminPanUI={
-  getOrCreatePanel:()=>null,
-  setLoginHtml:(h)=>{},
-  setAdminHtml:(h)=>{},
-  getPasswordInput:()=>'',
-  setPasswordError:(msg)=>{},
-};
-function registerAdminPanUI(cbs){Object.assign(_adminPanUI,cbs)}
-
-
-// ══════════════════════════════════════════
-// ADMIN PANEL v2 – Explorer UI with player details
-// ══════════════════════════════════════════
-
-let adminOpen=false;
-const _adminLog=[];
-const ADMIN_MAX_LOG=500;
-
-function adminLog(type,msg,data){
-  _adminLog.unshift({ts:Date.now(),type,msg,data:data||null,user:currentUser||'—'});
-  if(_adminLog.length>ADMIN_MAX_LOG)_adminLog.pop();
-  saveAdminLog();
-}
-async function saveAdminLog(){try{await storeSet('lx_admin_log',JSON.stringify(_adminLog.slice(0,300)),true)}catch(e){}}
-async function loadAdminLog(){try{const r=await storeGet('lx_admin_log',true);if(r){const d=JSON.parse(r);if(Array.isArray(d))_adminLog.push(...d)}}catch(e){}}
-
-const _origAddLog=addLog;
-addLog=function(m){_origAddLog(m);adminLog('game',m)};
-
-document.addEventListener('keydown',e=>{
-  if(e.ctrlKey&&e.shiftKey&&(e.key==='A'||e.key==='a'||e.code==='KeyA')){e.preventDefault();toggleAdmin()}
-});
-
-// NOTE: Default-PW wird nur beim ersten Start verwendet. Nach Änderung im Admin-Panel
-// wird der Hash in lx_admin_hash_v2 überschrieben und dieser Default ignoriert.
-const ADMIN_PASS_DEFAULT=['yo','shd','us','20','26'].join('');
-let _adminHash=null;
-async function getAdminHash(){
-  if(_adminHash)return _adminHash;
-  try{const stored=await storeGet('lx_admin_hash_v2',true);if(stored){_adminHash=JSON.parse(stored);return _adminHash}}catch(e){}
-  // Migration: check personal storage
-  try{const personal=await storeGet('lx_admin_hash_v2',false);if(personal){_adminHash=JSON.parse(personal);await storeSet('lx_admin_hash_v2',JSON.stringify(_adminHash),true);return _adminHash}}catch(e){}
-  // First time: hash default
-  const{hash,salt}=await hashPassword(ADMIN_PASS_DEFAULT);
-  _adminHash={hash,salt};
-  try{await storeSet('lx_admin_hash_v2',JSON.stringify(_adminHash),true)}catch(e){}
-  return _adminHash;
-}
-let adminAuthed=false;
-let adminTab='overview';
-let adminSelPlayer=null;
-
-function toggleAdmin(){
-  adminOpen=!adminOpen;
-  const panel=_adminPanUI.getOrCreatePanel(adminOpen);
-  if(!adminOpen)return;
-  if(!adminAuthed){
-    const loginHtml='<div class="admin-frame" style="max-width:400px;height:auto"><div class="admin-bar"><span class="admin-title">🔐 Admin-Login</span><button class="admin-close" onclick="toggleAdmin()">✕</button></div><div class="admin-body" style="padding:24px"><input type="password" id="adminPwInput" class="auth-input" placeholder="Admin-Passwort" style="margin-bottom:12px" "/><button class="btn full" onclick="adminLogin()">Anmelden</button><div id="adminPwErr" style="color:var(--r);text-align:center;margin-top:8px;font-size:13px"></div></div></div>';
-    _adminPanUI.setLoginHtml(loginHtml);
-    return;
-  }
-  renderAdmin();
-}
-async function adminLogin(){
-  try{
-  const pwVal=_adminPanUI.getPasswordInput();
-  // ── Server auth (Phase 2) ──
-  if(window.serverAuth?.available){
-    try{
-      const res=await window.serverAuth.adminLogin(pwVal);
-      if(res.ok){
-        adminAuthed=true;adminLog('admin','🔑 Admin-Login: '+sanitize(currentUser));
-        if(res.defaultPw)window._adminDefaultPw=true;
-        renderAdmin();return;
-      }
-      _adminPanUI.setPasswordError('❌ Falsches Passwort');return;
-    }catch(e){console.warn('Server admin auth failed, falling back:',e)}
-  }
-  // ── Client fallback ──
-  const rlKey='admin_'+(currentUser||'anon');
-  if(!await checkRateLimit(rlKey)){
-    _adminPanUI.setPasswordError('❌ Zu viele Versuche. Warte 5 Minuten.');
-    adminLog('admin','⚠️ Admin-Rate-Limit: '+(currentUser||'anon'));return;
-  }
-  const stored=await getAdminHash();
-  const{hash}=await hashPassword(pwVal,stored.salt);
-  if(hash===stored.hash){
-    await clearRateLimit(rlKey);adminAuthed=true;
-    adminLog('admin','🔑 Admin-Login: '+sanitize(currentUser));
-    const defCheck=await hashPassword(ADMIN_PASS_DEFAULT,stored.salt);
-    if(defCheck.hash===stored.hash)window._adminDefaultPw=true;
-    renderAdmin();
-  } else {
-    _adminPanUI.setPasswordError('❌ Falsches Passwort');
-    adminLog('admin','❌ Admin-Login fehlgeschlagen: '+currentUser);
-  }
-  }catch(e){console.warn('Admin error:',e);if(typeof toast==='function')toast('❌ Fehler: '+e.message,'var(--r)')}
-}
-function setAdminTab(t){adminTab=t;adminSelPlayer=null;renderAdmin()}
-async function changeAdminPw(newPw){
-  if(!newPw||newPw.length<4){if(typeof toast==='function')toast('❌ Mindestens 4 Zeichen','var(--r)');return}
-  if(window.serverAuth?.available){
-    try{const oldPw=prompt('Aktuelles Admin-Passwort:');if(!oldPw)return;
-      const res=await window.serverAuth.adminChangePw(oldPw,newPw);
-      if(res.ok){window._adminDefaultPw=false;if(typeof toast==='function')toast('🔒 Admin-Passwort geändert!','var(--a)');renderAdmin();return}
-      if(typeof toast==='function')toast('❌ Falsches aktuelles Passwort','var(--r)');return;
-    }catch(e){console.warn('Server admin pw change failed:',e)}
-  }
-  const{hash,salt}=await hashPassword(newPw);
-  _adminHash={hash,salt};
-  try{await storeSet('lx_admin_hash_v2',JSON.stringify(_adminHash),true)}catch(e){}
-  window._adminDefaultPw=false;
-  if(typeof toast==='function')toast('🔒 Admin-Passwort geändert!','var(--a)');renderAdmin();
-}
-
-// ═══ DEDUP SIDEBAR ═══
-function _adminSidebar(users,userKeys,saves){
-  let h='<div style="width:200px;min-width:200px;border-right:1px solid var(--bd);overflow-y:auto;padding:6px;display:flex;flex-direction:column">';
-  h+='<input type="text" class="sl" id="adminPlayerSearch" placeholder="🔍 Spieler..." style="font-size:11px;margin-bottom:6px;padding:4px 8px" oninput="window._adminPlayerFilter=this.value.toLowerCase();renderAdmin()">';
-  h+='<div style="font-family:var(--mono);font-size:10px;color:var(--td);padding:2px 8px;margin-bottom:4px">'+userKeys.length+' Spieler</div>';
-  h+='<div style="flex:1;overflow-y:auto">';
-  const filter=(window._adminPlayerFilter||'').toLowerCase();
-  userKeys.forEach(k=>{
-    const u=users[k];const sel=adminSelPlayer===k;
-    const name=sanitize(u.user||k);
-    if(filter&&!name.toLowerCase().includes(filter))return;
-    const sv=saves?saves[k]:null;
-    const lvl=sv?.level||1;const li=LEVELS[lvl-1];
-    const money=sv?fmt(sv.money||0):'—';
-    const isOn=sv?sv.onDuty!==false:false;
-    h+='<div style="padding:5px 8px;cursor:pointer;border-radius:8px;font-size:12px;margin-bottom:2px;transition:.1s;'+(sel?'background:rgba(61,214,140,.1);border:1px solid rgba(61,214,140,.3)':'border:1px solid transparent')+'" onclick="adminSelPlayer=\''+k+'\';renderAdmin()">';
-    h+='<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:'+(sel?'var(--a)':'var(--t)')+'">'+name+'</span>';
-    h+='<span style="font-size:10px">'+(isOn?'🟢':'🔴')+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--td)"><span>'+(li?.em||'')+' Lv'+lvl+'</span><span>💰 '+money+'</span></div>';
-    h+='</div>'});
-  h+='</div></div>';
-  return h;
-}
-
-// ═══ CHEAT/ANOMALY DETECTION ═══
-function _adminScanAlerts(saves,users){
-  const alerts=[];
-  Object.entries(saves).forEach(([k,sv])=>{
-    if(!sv)return;const name=users[k]?.user||k;
-    // 1. Unrealistic money (>50M at low level or negative >1M)
-    if(sv.money>50000000&&(sv.level||1)<10)alerts.push({sev:'high',icon:'💰',player:name,key:k,msg:'Unrealistisch hohes Geld: '+fmt(sv.money)+' bei Level '+(sv.level||1)});
-    if(sv.money<-1000000)alerts.push({sev:'med',icon:'💸',player:name,key:k,msg:'Extreme Schulden: '+fmt(sv.money)});
-    // 2. Earnings/hour too high
-    if(sv._stats?.length>=2){const recent=sv._stats.slice(-12);if(recent.length>=2){
-      const dt=(recent[recent.length-1].ts-recent[0].ts)/3600000;
-      if(dt>0){const earnRate=((recent[recent.length-1].w||0)-(recent[0].w||0))/dt;
-        if(earnRate>5000000)alerts.push({sev:'high',icon:'📈',player:name,key:k,msg:'Verdienst '+fmt(Math.round(earnRate))+'/h — ungewöhnlich hoch'});
-      }}}
-    // 3. Level too high for deliveries
-    const expDels=[0,3,8,18,30,50,80,120,180,300,450,600,800,1100,1500];
-    if((sv.level||1)>1&&(sv.dels||0)<expDels[Math.min((sv.level||1)-1,14)]*0.3)
-      alerts.push({sev:'med',icon:'🏆',player:name,key:k,msg:'Level '+(sv.level||1)+' aber nur '+(sv.dels||0)+' Lieferungen — mögl. Level-Manipulation'});
-    // 4. Too many vehicles for level
-    const maxVehs=Math.min(5+(sv.level||1)*4,80);
-    if((sv.vehs||[]).length>maxVehs)alerts.push({sev:'med',icon:'🚛',player:name,key:k,msg:(sv.vehs||[]).length+' Fahrzeuge bei Level '+(sv.level||1)+' (max ~'+maxVehs+')'});
-    // 5. NaN values
-    ['money','earned','dels','tick'].forEach(f=>{
-      if(typeof sv[f]==='number'&&isNaN(sv[f]))alerts.push({sev:'high',icon:'⚠️',player:name,key:k,msg:'NaN in Feld: '+f});
-    });
-    // 6. Corrupted orders
-    const badOrds=(sv.orders||[]).filter(o=>!o||!o.good||typeof o.rew!=='number'||isNaN(o.rew));
-    if(badOrds.length)alerts.push({sev:'med',icon:'📋',player:name,key:k,msg:badOrds.length+' korrupte Aufträge'});
-    // 7. Vehicles stuck (moving but no route)
-    const stuckVehs=(sv.vehs||[]).filter(v=>v.st==='moving'&&!v.rt);
-    if(stuckVehs.length)alerts.push({sev:'med',icon:'🚛',player:name,key:k,msg:stuckVehs.length+' Fahrzeuge stecken fest (moving ohne Route)'});
-    // 8. Unrealistic company value
-    const bldCount=Object.values(sv.blds||{}).flat().length;
-    const vehCount=(sv.vehs||[]).length;
-    if(bldCount+vehCount<3&&(sv.earned||0)>500000)
-      alerts.push({sev:'low',icon:'🔍',player:name,key:k,msg:'Hohe Einnahmen ('+fmt(sv.earned||0)+') mit wenig Infrastruktur ('+bldCount+' Geb, '+vehCount+' Fzg)'});
-  });
-  return alerts.sort((a,b)=>{const p={high:0,med:1,low:2};return(p[a.sev]||3)-(p[b.sev]||3)});
-}
-
 // ══════════════════════════════════════════
 // ADMIN UI – renderAdmin, renderAdminPlayer
 // ══════════════════════════════════════════
