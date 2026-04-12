@@ -1,4 +1,4 @@
-// LogistiX — Build VDCK1N — 2026-04-12 06:14
+// LogistiX — Build VUZWSR — 2026-04-12 14:28
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -250,7 +250,12 @@ function doLevelUp(){
   addMoney(-(r.next.cost));finLog('expense',-r.next.cost,'Level-Up: '+r.next.name);G.level=r.next.lvl;
   G._justLeveledUp=true;delete G._lvlUpToastFor;
   addLog('⭐ Level '+r.next.lvl+': '+r.next.em+' '+r.next.name+'!');
-  if(typeof toast==='function')toast('🎉 Level '+r.next.lvl+'! '+r.next.em+' '+r.next.name,'#fbbf24',6000);
+  // 5.3: Fullscreen level-up overlay
+  const ov=document.createElement('div');ov.className='lvlup-overlay';
+  const colors=['#34d399','#fbbf24','#60a5fa','#f87171','#a855f7','#fb923c'];
+  for(let i=0;i<30;i++){const c=document.createElement('div');c.className='confetti';c.style.cssText='left:'+Math.random()*100+'%;top:-10px;background:'+colors[i%6]+';animation-delay:'+Math.random()*1.5+'s;animation-duration:'+(2+Math.random()*2)+'s;width:'+(6+Math.random()*6)+'px;height:'+(6+Math.random()*6)+'px';ov.appendChild(c)}
+  ov.innerHTML+='<div class="lvlup-box"><div style="font-size:60px;margin-bottom:12px">'+r.next.em+'</div><div style="font-size:12px;color:var(--td);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Level Up!</div><div style="font-size:32px;font-weight:800;font-family:var(--mono);color:#fbbf24;margin-bottom:4px">Level '+r.next.lvl+'</div><div style="font-size:18px;font-weight:600;color:var(--t);margin-bottom:16px">'+r.next.name+'</div><div style="font-size:12px;color:var(--td);margin-bottom:20px;line-height:1.6">'+r.next.desc+'</div><button class="btn full" style="max-width:200px;margin:0 auto;background:rgba(251,191,36,.15);color:#fbbf24;border-color:rgba(251,191,36,.3);font-size:14px;padding:10px" onclick="this.closest(\'.lvlup-overlay\').remove()">Weiter →</button></div>';
+  document.body.appendChild(ov);
   markDirty();ua();
 }
 
@@ -666,7 +671,7 @@ const ALLCITIES=DB.map(d=>({name:d[0],co:d[1],pop:d[2],lat:d[3],lng:d[4],harbor:
 function sumObj(o){let t=0;for(const k in o)t+=o[k];return t}
 function searchCities(q){const ql=q.toLowerCase();return ALLCITIES.filter(c=>c._s.includes(ql)).sort((a,b)=>{const ai=a._s.indexOf(ql),bi=b._s.indexOf(ql);if(ai===0&&bi!==0)return-1;if(bi===0&&ai!==0)return 1;return b.pop-a.pop}).slice(0,12)}
 const hav=(a,b,c,d)=>{const R=6371,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,z=Math.sin(x/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(y/2)**2;return R*2*Math.atan2(Math.sqrt(z),Math.sqrt(1-z))};
-const fmt=n=>{if(typeof n!=='number'||isNaN(n))n=0;return n.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})};
+const fmt=n=>{if(typeof n!=='number'||isNaN(n))n=0;if(Math.abs(n)>=1000000)return(n/1000000).toLocaleString('de-DE',{maximumFractionDigits:2})+'M €';if(Math.abs(n)>=100000)return(n/1000).toLocaleString('de-DE',{maximumFractionDigits:0})+'K €';return n.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})};
 const cSz=p=>p>10e6?'Megastadt':p>1e6?'Metropole':p>1e5?'Großstadt':p>2e4?'Mittelstadt':p>5000?'Kleinstadt':'Dorf';
 const cSzIcon=p=>p>10e6?'🌐':p>1e6?'🌃':p>1e5?'🌆':p>2e4?'🏙️':p>5000?'🏘️':'🏡';
 const mxB=p=>p>10e6?10:p>1e6?7:p>1e5?5:p>2e4?4:p>5000?3:2;
@@ -778,11 +783,13 @@ function createPopup(id,html,opts){
   if(o.zIndex)el.style.zIndex=o.zIndex;
   if(o.raw){el.innerHTML=html}
   else{const maxW=o.maxWidth||'520px';
-    el.innerHTML='<div class="unlock-popup" style="max-width:'+maxW+';max-height:85vh;overflow-y:auto"><div class="unlock-body">'+html+'</div></div>';}
+    // 1.2: Add back button for mobile
+    el.innerHTML='<div class="unlock-popup" style="max-width:'+maxW+';max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:flex-end;padding:8px 8px 0"><button style="border:none;background:rgba(255,255,255,.06);color:var(--td);cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:16px;display:flex;align-items:center;justify-content:center" onclick="this.closest(\'.unlock-bg\').remove()">✕</button></div><div class="unlock-body">'+html+'</div></div>';}
   el.addEventListener('click',e=>{if(e.target===el)el.remove()});
   document.body.appendChild(el);
   return el;
 }
+function showPopup(id,html,opts){return createPopup(id,html,opts)}
 function closePopup(id){const el=document.getElementById(id);if(el)el.remove()}
 
 // ═══ STORAGE RESERVATION SYSTEM ═══
@@ -919,6 +926,46 @@ function _subTabBar(tabs, currentId, onclickFn) {
   });
   h += '</div>';
   return h;
+}
+
+// 5.1: Money fly animation
+function moneyFly(amount){
+  if(!amount)return;
+  const el=document.createElement('div');el.className='money-fly';
+  el.textContent=(amount>0?'+':'')+fmt(amount);
+  el.style.left='50%';el.style.top='60px';el.style.transform='translateX(-50%)';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1600);
+  // Pulse the money display
+  const hm=document.getElementById('hMoney');if(hm){hm.classList.add('kaching');setTimeout(()=>hm.classList.remove('kaching'),500)}
+}
+
+// 3.3: Quick standing order from inventory
+function _quickDAFromInv(fromCid,good){
+  if(!G||cities.length<2)return;
+  const targets=cities.filter(c=>c.id!==fromCid);
+  if(!targets.length){if(typeof toast==='function')toast('❌ Nur 1 Standort','var(--r)');return}
+  let h='<div style="padding:16px"><div style="font-size:16px;font-weight:700;margin-bottom:12px">🔄 Schnell-Dauerauftrag</div>';
+  h+='<div style="margin-bottom:8px;font-size:13px">'+(GOODS[good]?.em||'')+' '+(GOODS[good]?.name||good)+' von <b>'+(C(fromCid)?.name||'?')+'</b></div>';
+  h+='<div style="margin-bottom:6px;font-size:12px">Ziel:</div>';
+  h+='<select id="_qdaDest" class="sl" style="width:100%;margin-bottom:12px;font-size:13px;padding:8px">';
+  targets.forEach(t=>{h+='<option value="'+t.id+'">'+t.name+'</option>'});
+  h+='</select>';
+  h+='<div style="margin-bottom:6px;font-size:12px">Fahrzeug:</div>';
+  const vehs=G.vehs.filter(v=>v.st==='idle'&&!isSOBound(v)&&!v.maintQueued);
+  h+='<select id="_qdaVeh" class="sl" style="width:100%;margin-bottom:12px;font-size:13px;padding:8px">';
+  vehs.forEach(v=>{const vt=VT[v.type];h+='<option value="'+v.id+'">'+(vt?.em||'')+' '+vehName(v)+' (Kap:'+vehCap(v)+')</option>'});
+  h+='</select>';
+  h+='<button class="btn full" style="background:var(--a);color:var(--bg)" onclick="_qdaExec(\''+fromCid+'\',\''+good+'\')">🔄 Erstellen</button>';
+  h+='</div>';
+  showPopup('qdaPopup',h);
+}
+function _qdaExec(from,good){
+  const to=document.getElementById('_qdaDest')?.value;const vid=document.getElementById('_qdaVeh')?.value;
+  if(!to||!vid){if(typeof toast==='function')toast('❌ Ziel und Fahrzeug wählen','var(--r)');return}
+  if(!G.standingOrders)G.standingOrders=[];
+  G.standingOrders.push({id:uid(),from,to,goods:[{good,amt:999}],active:true,vehicleIds:[vid],stats:{trips:0,totalAmt:0,lastTrip:0}});
+  closePopup('qdaPopup');if(typeof toast==='function')toast('🔄 Dauerauftrag erstellt!','var(--a)');save();renComp();
 }
 
 
@@ -1570,7 +1617,7 @@ async function save(){
   if(_savePending)clearTimeout(_savePending);
   _savePending=setTimeout(async()=>{
     _savePending=null;
-    try{await storeSet('lx_save_'+currentUser,JSON.stringify({...G,_t:Date.now()}))}catch(e){console.warn('Storage:',e)}
+    try{G._lastSessionEnd=Date.now();await storeSet('lx_save_'+currentUser,JSON.stringify({...G,_t:Date.now()}))}catch(e){console.warn('Storage:',e)}
     const now=Date.now();
     if(now-_lastLbSave>60000){_lastLbSave=now;_saveLb()}
   },300);
@@ -2069,26 +2116,34 @@ function claimTutorial(qid){
   if(G.quests.tutorial[qid]!=='done')return;
   const q=TUTORIAL.find(x=>x.id===qid);if(!q)return;
   addMoney(q.reward);finLog('quest',q.reward,'Tutorial: '+q.name);G.quests.tutorial[qid]='claimed';
-  addLog('🎁 Tutorial: +'+fmt(q.reward)+' ('+q.name+')');ua();
+  addLog('🎁 Tutorial: +'+fmt(q.reward)+' ('+q.name+')');
+  if(typeof moneyFly==='function')moneyFly(q.reward);
+  if(typeof toast==='function')toast('📖 '+q.name+' · +'+fmt(q.reward),'var(--a)',3000);ua();
 }
 function claimLevelMission(qid){
   if(!G||!G.quests||!G.quests.levelMissions)return;
   if(G.quests.levelMissions[qid]!=='done')return;
   const q=LEVEL_MISSIONS.find(x=>x.id===qid);if(!q)return;
   addMoney(q.reward);finLog('quest',q.reward,'Level-Mission: '+q.name);G.quests.levelMissions[qid]='claimed';
-  addLog('🎁 Level-Mission: +'+fmt(q.reward)+' ('+q.name+')');ua();
+  addLog('🎁 Level-Mission: +'+fmt(q.reward)+' ('+q.name+')');
+  if(typeof moneyFly==='function')moneyFly(q.reward);
+  if(typeof toast==='function')toast('🛡️ '+q.name+' · +'+fmt(q.reward),'#fbbf24',3000);ua();
 }
 function claimDaily(idx){
   if(!G||!G.quests||!G.quests.dailies)return;
   const q=G.quests.dailies[idx];if(!q||!q.done||q.claimed)return;
   addMoney(q.reward);finLog('quest',q.reward,'Mission: '+(q.title||''));q.claimed=true;
-  addLog('🎁 Tagesbelohnung: +'+fmt(q.reward)+' ('+q.name+')');ua();
+  addLog('🎁 Tagesbelohnung: +'+fmt(q.reward)+' ('+q.name+')');
+  if(typeof moneyFly==='function')moneyFly(q.reward);
+  if(typeof toast==='function')toast('🎁 '+q.name+' · +'+fmt(q.reward),'#fbbf24',3000);ua();
 }
 function claimWeekly(idx){
   if(!G||!G.quests||!G.quests.weeklies)return;
   const q=G.quests.weeklies[idx];if(!q||!q.done||q.claimed)return;
   addMoney(q.reward);finLog('quest',q.reward,'Mission: '+(q.title||''));q.claimed=true;
-  addLog('🎁 Wochenbelohnung: +'+fmt(q.reward)+' ('+q.name+')');ua();
+  addLog('🎁 Wochenbelohnung: +'+fmt(q.reward)+' ('+q.name+')');
+  if(typeof moneyFly==='function')moneyFly(q.reward);
+  if(typeof toast==='function')toast('🏆 '+q.name+' · +'+fmt(q.reward),'#c084fc',3000);ua();
 }
 
 
@@ -4585,7 +4640,7 @@ function tickCore(){
       // After 150% delivery time: auto-cancel with penalty
       if(delivAge>=o.deliverTl*1.5){
         const pen=Math.round((o.origRew||0)*0.4)||0;if(pen>0){addMoney(-(pen));finLog("penalty",-pen,"Auftrag verfallen")}
-                addLog('❌ Auftrag '+fmtOrd(o.num)+' abgelaufen! -'+fmt(pen)+' Strafe');if(typeof toast==='function')toast('❌ Auftrag abgelaufen! -'+fmt(pen),'var(--r)');markCompDirty();
+                addLog('❌ Auftrag '+fmtOrd(o.num)+' abgelaufen! -'+fmt(pen)+' Strafe');if(typeof toast==='function')toast('❌ Auftrag abgelaufen! -'+fmt(pen),'var(--r)',2500,'order');markCompDirty();
         o._expired=true;G._lastExpiredTick=getTick();
         if(o.express)G._expressExpired=true;
       }
@@ -4648,7 +4703,7 @@ function tickCore(){
         if(pct<0.2&&cur<amt&&pct<worstPct){worstPct=pct;worst={g,amt,cur,city:c.name}}
       });
     });
-    if(worst)toast('📋 '+(GOODS[worst.g]?.em||'')+' '+(GOODS[worst.g]?.name||worst.g)+' in '+worst.city+' fast leer! ('+worst.cur+'/'+worst.amt+')','rgba(56,189,248,.9)');
+    if(worst)toast('📋 '+(GOODS[worst.g]?.em||'')+' '+(GOODS[worst.g]?.name||worst.g)+' in '+worst.city+' fast leer! ('+worst.cur+'/'+worst.amt+')','rgba(56,189,248,.9)',2500,'stock');
   }
 
   // ── Orders + Express ──
@@ -4659,14 +4714,14 @@ function tickCore(){
     // Express order every 2-3 min
     if(G.tick%240===0&&G.orders.filter(o=>o.type==='express'&&!o.acc).length<2){
       const eo=genExpressOrder();if(eo){G.orders.push(eo);
-        const en=Cx(eo.to);if(typeof toast==='function')toast('⚡ Express: '+(GOODS[eo.good]?.em||'')+' '+eo.amt+'× → '+(en?.name||'?')+' · '+fmt(eo.rew),'#fbbf24');
+        const en=Cx(eo.to);if(typeof toast==='function')toast('⚡ Express: '+(GOODS[eo.good]?.em||'')+' '+eo.amt+'× → '+(en?.name||'?')+' · '+fmt(eo.rew),'#fbbf24',2500,'order');
         try{if(navigator.vibrate)navigator.vibrate([100,50,100])}catch(e){}
         markCompDirty()}
     }
     // Special orders every ~10 min at level 8+
     if(G.tick%600===0&&playerLvl()>=8&&G.orders.filter(o=>o.type==='special'&&!o.acc).length<1){
       const so=genSpecialOrder();if(so){G.orders.push(so);
-        if(typeof toast==='function')toast('🌟 Spezialauftrag: '+so.goods.map(g=>(GOODS[g.good]?.em||'')+g.amt+'×').join(' + ')+' · '+fmt(so.rew),'#c084fc');
+        if(typeof toast==='function')toast('🌟 Spezialauftrag: '+so.goods.map(g=>(GOODS[g.good]?.em||'')+g.amt+'×').join(' + ')+' · '+fmt(so.rew),'#c084fc',2500,'order');
         markCompDirty()}
     }
   }
@@ -5199,8 +5254,13 @@ function _tickVehicles(){
               G.history.push({good:o.good,amt:o.amt,rew:o.rew,from:v.rt?.from||o.from||null,to:o.to,tick:getTick(),ts:Date.now(),express:o.type==='express',toName:o.toName||''});
               if(G.history.length>200)G.history.shift();
               addLog('✅ '+(GOODS[o.good]?.em||'')+o.amt+'×→'+t.name+' +'+fmt(o.rew));markCompDirty();
-              if(typeof toast==='function')toast('✅ Auftrag #'+o.num+' abgeschlossen! +'+ fmt(o.rew),'var(--a)');
+              if(typeof toast==='function')toast('✅ Auftrag #'+o.num+' abgeschlossen! +'+fmt(o.rew),'var(--a)',2500,'delivery');if(typeof moneyFly==='function')moneyFly(payRew);
               G.orders=G.orders.filter(x=>x.id!==o.id);
+              // 5.4: Delivery streak
+              if(!G._streak)G._streak={count:0,lastTick:0};
+              if(getTick()-G._streak.lastTick<3600){G._streak.count++;if(G._streak.count>=3&&G._streak.count%3===0){const bonus=Math.round(payRew*0.1);addMoney(bonus);finLog('income',bonus,'🔥 Streak-Bonus ('+G._streak.count+'×)');if(typeof toast==='function')toast('🔥 Streak! '+G._streak.count+'× · +'+fmt(bonus)+' Bonus','#fb923c',3000)}}
+              else G._streak.count=1;
+              G._streak.lastTick=getTick();
             } else {
               trackSupply(o.good,v.cargo.amt);addLog('📦 Teillieferung '+(GOODS[o.good]?.em||'')+v.cargo.amt+'× ('+o.delivered+'/'+o.amt+')');
             }
@@ -5268,7 +5328,7 @@ function _tickVehicles(){
             if(stored>0)G.stor[cid][v.cargo.good]=(G.stor[cid][v.cargo.good]||0)+stored;
             if(stored<v.cargo.amt)addLog('⚠️ Lager voll — '+(v.cargo.amt-stored)+'× verloren');
             addLog('🛒 Börsen-Abholung geliefert: '+(GOODS[v.cargo.good]?.em||'')+stored+'× → '+(C(cid)?.name||'?'));
-            if(typeof toast==='function')toast('🛒 Abholung angekommen!','#fb923c');
+            if(typeof toast==='function')toast('🛒 Abholung angekommen!','#fb923c',2500,'delivery');
             // Remove pickup
             if(G.pmPickups)G.pmPickups=G.pmPickups.filter(p=>p.id!==v.cargo.pickupId);
             markCompDirty();
@@ -5354,7 +5414,7 @@ function _tickVehicles(){
             addMoney(-(mc));finLog('expense',-mc,'Auto-Wartung: '+vehName(v));
             v.lastMaintKm=v.km||0;v.needsMaint=false;v.maintQueued=false;
             addLog('🔧 Auto-Wartung: '+vehName(v)+' · -'+fmt(mc));
-            if(typeof toast==='function')toast('🔧 '+vehName(v)+' gewartet','var(--a)');
+            if(typeof toast==='function')toast('🔧 '+vehName(v)+' gewartet','var(--a)',2500,'vehicle');
           } else {
             addLog('⚠️ '+vehName(v)+' wartet auf Wartung — nicht genug Geld ('+fmt(mc)+')');
           }
@@ -5821,6 +5881,18 @@ function uvmk(){
   });
   // Follow tracked vehicle
   if(trackPos&&_trackVeh)MP.panTo(trackPos,{animate:true,duration:.3});
+  // 2.2: Draw accepted order routes on map
+  if(!window._ordLines)window._ordLines=[];
+  window._ordLines.forEach(l=>MP.removeLayer(l));window._ordLines=[];
+  if(G&&G.orders){G.orders.filter(o=>o.acc).forEach(o=>{
+    const tgt=Cx(o.to);if(!tgt)return;
+    const srcCity=cities.find(c2=>_cityStock(c2.id,o.good)>0)||cities[0];
+    if(!srcCity)return;
+    const hasVeh=G.vehs.some(v=>v.cargo?.oid===o.id&&v.st==='moving');
+    const clr=hasVeh?'#34d399':'rgba(251,191,36,.5)';
+    const ln=L.polyline([[srcCity.lat,srcCity.lng],[tgt.lat,tgt.lng]],{color:clr,weight:hasVeh?2:1.5,opacity:hasVeh?.4:.2,dashArray:'4,8'}).addTo(MP);
+    window._ordLines.push(ln);
+  })}
   // Update order panel
   _updateOrderPanel();
 }
@@ -6212,7 +6284,7 @@ async function nomSearch(q,target){
 // ══════════════════════════════════════════
 // RENDER v8 – Dashboard-default, toggle to Map
 // ══════════════════════════════════════════
-let computerOpen=false,compTab='missions',minimap=null,minimapPin=null,minimapOpen=true,buildExpanded={};
+let computerOpen=false,compTab='logistics',minimap=null,minimapPin=null,minimapOpen=true,buildExpanded={};
 let viewMode='dashboard'; // 'dashboard' or 'map'
 let explorerCollapsed={};
 let routesShowAll=true;
@@ -6487,7 +6559,12 @@ function _renderHome(){
 
   // ── Key numbers (hidden on phone — redundant with top-bar) ──
   h+='<div class="home-kpis home-secondary" style="display:flex;gap:1px;border-radius:12px;overflow:hidden;margin-bottom:12px;border:1px solid var(--bd)">';
-  [{em:'💰',val:fmt(G.money),lbl:'Konto',clr:G.money>=0?'#34d399':'var(--r)'},{em:'💎',val:fmt(cv),lbl:'Wert',clr:'#c084fc'},{em:'📦',val:getDeliveries()||0,lbl:'Lieferungen',clr:'var(--a)'}].forEach(s=>{
+  // 2.1: Calculate €/h from finance log
+  const now2=Date.now();const recentFin=(G.finance||[]).filter(f=>now2-f.ts<3600000);
+  const incH=recentFin.filter(f=>f.amt>0).reduce((s,f)=>s+f.amt,0);
+  const expH=recentFin.filter(f=>f.amt<0).reduce((s,f)=>s+Math.abs(f.amt),0);
+  const netH=incH-expH;
+  [{em:'💰',val:fmt(G.money),lbl:'Konto',clr:G.money>=0?'#34d399':'var(--r)'},{em:'💎',val:fmt(cv),lbl:'Wert',clr:'#c084fc'},{em:'📦',val:getDeliveries()||0,lbl:'Lieferungen',clr:'var(--a)'},{em:netH>=0?'📈':'📉',val:(netH>=0?'+':'')+fmt(netH),lbl:'€/Stunde',clr:netH>=0?'#34d399':'var(--r)'}].forEach(s=>{
     h+='<div style="flex:1;text-align:center;padding:10px 4px;background:rgba(255,255,255,.02)"><div style="font-size:14px">'+s.em+'</div>';
     h+='<div class="home-kpi-val" style="font-family:var(--mono);font-size:16px;font-weight:800;color:'+s.clr+'">'+s.val+'</div>';
     h+='<div style="font-size:9px;color:var(--td);text-transform:uppercase">'+s.lbl+'</div></div>'});
@@ -6559,6 +6636,27 @@ function _renderHome(){
 
   // ── Link to full dashboard ──
   h+='<div class="center-pad"><button class="btn sec sm" onclick="window._dashTab=\'hq\';renDash()">📊 Detailliertes Dashboard →</button></div>';
+
+  // 5.2: Today stats
+  const sessionStart=G._sessionStart||(G._sessionStart=Date.now());
+  const sessionDels=(G.history||[]).filter(x=>x.ts&&x.ts>sessionStart).length;
+  const sessionEarn=(G.history||[]).filter(x=>x.ts&&x.ts>sessionStart).reduce((s,x)=>s+(x.rew||0),0);
+  if(sessionDels>0){
+    h+='<div style="margin-top:10px;padding:8px 12px;border-radius:10px;border:1px solid var(--bd);background:rgba(255,255,255,.02);font-size:11px;color:var(--td);display:flex;justify-content:space-between">';
+    h+='<span>📊 Diese Session</span><span style="font-family:var(--mono)">'+sessionDels+' Lieferungen · <span style="color:var(--a)">+'+fmt(sessionEarn)+'</span></span></div>';
+  }
+
+  // 5.5: Leaderboard teaser
+  if(typeof _lbTeaser==='undefined')window._lbTeaser=null;
+  if(!window._lbTeaser&&typeof window.storage!=='undefined'){try{window.storage.list('lb:',true).then(function(r){if(r&&r.keys&&r.keys.length>1){var proms=r.keys.map(function(k){return window.storage.get(k,true)});Promise.all(proms).then(function(results){var board=results.filter(function(x){return x&&x.value}).map(function(x){try{return JSON.parse(x.value)}catch(e2){return null}}).filter(Boolean).sort(function(a,b){return(b.value||0)-(a.value||0)});var myIdx=board.findIndex(function(x){return x.name===currentUser});window._lbTeaser={rank:myIdx+1,total:board.length,ahead:myIdx>0?board[myIdx-1]:null,me:board[myIdx]};renDash()})}})}catch(e){}}
+  if(window._lbTeaser&&window._lbTeaser.total>1){
+    const lb=window._lbTeaser;
+    h+='<div class="lb-teaser" onclick="showLeaderboard()">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:600">🏆 Rang '+lb.rank+' von '+lb.total+'</span><span style="color:var(--td);font-size:14px">→</span></div>';
+    if(lb.ahead)h+='<div style="font-size:10px;color:var(--td);margin-top:2px">'+fmt((lb.ahead.value||0)-(lb.me?.value||0))+' hinter <b>'+sanitize(lb.ahead.name||'?')+'</b></div>';
+    h+='</div>';
+  }
+
   h+='</div>'; // close .home-view
   return h;
 }
@@ -7915,6 +8013,19 @@ function renComp(){
 
   // Tab content
   const el=document.getElementById('compBody');
+
+  // 1.1: Breadcrumb
+  const breadEl=document.getElementById('compBread');if(breadEl){
+    const tabNames={missions:'Missionen',dealer:'Händler',fleet:'Fuhrpark',inventory:'Lager',market:'Markt',logistics:'Logistik',buildings:'Gebäude'};
+    const subNames={};
+    if(compTab==='logistics')subNames[G.logSub||'orders']={orders:'Aufträge',automation:'Routen & Versand',stats:'Statistik',finance:'Finanzen'}[G.logSub||'orders']||'';
+    if(compTab==='market')subNames[G.marketSub||'prices']={prices:'Preise',supply:'Marktdynamik',handel:'Handel'}[G.marketSub||'prices']||'';
+    if(compTab==='missions')subNames[G.missionSub||'daily']={daily:'Heute',weekly:'Woche',level:'Level',achievements:'Erfolge'}[G.missionSub||'daily']||'';
+    if(compTab==='buildings')subNames[bldSub||'build']={build:'Bauen',manage:'Verwalten'}[bldSub||'build']||'';
+    const subKey=Object.keys(subNames)[0];const subVal=subKey?subNames[subKey]:'';
+    breadEl.innerHTML=(tabNames[compTab]||'')+(subVal?' <span style="opacity:.4">›</span> '+subVal:'');
+  }
+
   const evts=typeof activeEvents==='function'?activeEvents():[];
   const tabs={missions:compMissions,dealer:compDealer,fleet:compFleet,logistics:compLogistics,inventory:compInventory,market:compMarket,buildings:compBuildings};
   if(tabs[compTab]){
@@ -8461,7 +8572,7 @@ function compFleet(el){
   const soBound=G.vehs.filter(v=>isSOBound(v));
   h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">';
   h+='<span class="tg g">'+idle.length+' bereit</span><span class="tg y">'+moving.length+' unterwegs</span><span class="tg">'+G.vehs.length+' gesamt</span>';
-  if(G.vehs.length>0){const fleetUtil=Math.round(moving.length/G.vehs.length*100);const fuClr=fleetUtil>60?'var(--a)':fleetUtil>30?'var(--go)':'var(--td)';h+='<span class="tg" style="color:'+fuClr+'">⚡'+fleetUtil+'%</span>'}
+  if(G.vehs.length>0){const fleetUtil=Math.round(moving.length/G.vehs.length*100);const fuClr=fleetUtil>60?'var(--a)':fleetUtil>30?'var(--go)':'var(--td)';h+='<span class="tg" style="color:'+fuClr+'">⚡'+fleetUtil+'%</span>';const avgCond=Math.round(G.vehs.reduce((s,v)=>s+vehCondition(v),0)/G.vehs.length);const acClr=avgCond>60?'var(--a)':avgCond>30?'var(--go)':'var(--r)';h+='<span class="tg" style="color:'+acClr+'">🔧Ø'+avgCond+'%</span>'}
   h+='</div>';
   // Spec category summary
   const specCounts={normal:0,cool:0,tank:0,hazard:0};const specCap={normal:0,cool:0,tank:0,hazard:0};
@@ -8819,13 +8930,13 @@ function compLogistics(el) {
   const soCount = (G.standingOrders||[]).length;
   const hist = G.history||[];
   const unass = G.orders.filter(o=>o.acc&&(o.amt-(o.delivered||0))>0&&!G.vehs.find(v=>v.cargo?.oid===o.id&&v.st==='moving')).length;
-  let tabH = '<div style="display:flex;gap:2px;margin-bottom:12px;padding:3px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)">';
+  let tabH = '<div style="display:flex;gap:3px;margin-bottom:12px;padding:4px;background:rgba(0,0,0,.25);border-radius:10px;border:1px solid var(--bd2)">';
   [['orders','📋 Aufträge'+(unass?' <span style="background:rgba(251,191,36,.25);color:var(--go);border-radius:8px;padding:0 5px;font-size:9px">'+unass+'</span>':''),'var(--a)'],
-   ['automation','🗺️ Routen'+(soCount?' ('+soCount+')':''),'var(--a2)'],
+   ['automation','🗺️ Routen & DA'+(soCount?' <span style="background:rgba(56,189,248,.25);color:var(--a2);border-radius:8px;padding:0 5px;font-size:9px">'+soCount+'</span>':''),'var(--a2)'],
    ['stats','📊 Statistik','var(--a2)'],
    ['finance','💰 Finanzen','var(--go)']].forEach(function(t){
     var on=G.logSub===t[0];
-    tabH+='<button style="flex:1;padding:7px 6px;font-size:11px;font-family:var(--mono);font-weight:'+(on?'700':'500')+';color:'+(on?t[2]:'var(--td)')+';background:'+(on?t[2]+'18':'transparent')+';border:none;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="setLogSub(\''+t[0]+'\')">'+t[1]+'</button>';
+    tabH+='<button style="flex:1;padding:8px 6px;font-size:12px;font-family:var(--mono);font-weight:'+(on?'700':'500')+';color:'+(on?'#fff':'var(--td)')+';background:'+(on?t[2]:'transparent')+';border:'+(on?'1px solid '+t[2]:'1px solid transparent')+';border-radius:7px;cursor:pointer;white-space:nowrap;transition:.15s" onclick="setLogSub(\''+t[0]+'\')">'+t[1]+'</button>';
   });
   tabH += '</div>';
 
@@ -8954,9 +9065,10 @@ function _orderCard(o, accepted) {
     if (estTime) h += '<span>\u23f1 ' + estTime + '</span>';
     h += '</div>';
 
-    h += '<div style="padding:4px 12px 10px;display:flex;gap:6px">';
-    h += '<button class="btn sm" style="flex:1;height:34px;font-size:12px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="accO(\'' + o.id + '\');ren()">Annehmen</button>';
-    h += '<button class="btn sm" style="height:34px;font-size:12px;color:var(--r);border-color:rgba(248,113,113,.2)" onclick="declineO(\'' + o.id + '\');ren()">\u2715 Ablehnen</button>';
+    h += '<div class="ord-actions" style="padding:4px 12px 10px;display:flex;gap:12px">';
+    h += '<button class="btn sm" style="flex:2;height:38px;font-size:12px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="accO(\'' + o.id + '\');ren()">Annehmen</button>';
+    if (oFreeVehs > 0) h += '<button class="btn sm" style="flex:2;height:38px;font-size:12px;background:rgba(56,189,248,.12);color:var(--a2);border-color:rgba(56,189,248,.3)" onclick="accO(\'' + o.id + '\');setTimeout(function(){autoAssign(\'' + o.id + '\')},100)">⚡ Annehmen & Zuweisen</button>';
+    h += '<button class="btn sm" style="flex:1;height:38px;font-size:11px;color:var(--r);border-color:rgba(248,113,113,.2)" onclick="declineO(\'' + o.id + '\');ren()">\u2715</button>';
     h += '</div>';
 
   } else {
@@ -9358,6 +9470,12 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
     const c=cd.c,s=cd.s,cap=cd.cap,used=cd.used;
     const reg=getRegion((c.co||'').toUpperCase());
     const _pr=_cityProdRates(c.id);
+    // 2.4: Compute consumption rates for trend arrows
+    const _cr={};(G.blds[c.id]||[]).forEach(b=>{if(b.paused)return;const d=BLD[b.type];if(!d)return;
+      const interval=typeof bldTickInterval==='function'?bldTickInterval(b):(d.baseTick||60);
+      if(d.inp){_cr[d.inp]=(_cr[d.inp]||0)+(d.inpN||1)/interval}
+      if(d.tp==='recipe'&&d.recipes){const pool=RECIPES[d.recipes];if(pool)(b.activeRecipes||[b.recipe].filter(Boolean)).forEach(rid=>{const r=pool.find(x=>x.id===rid);if(r){if(r.in1)_cr[r.in1]=(_cr[r.in1]||0)+(r.in1N||1)/interval;if(r.in2)_cr[r.in2]=(_cr[r.in2]||0)+(r.in2N||1)/interval}})}
+    });
     const _mi=_cityMissingInputs(c.id,s);
     const cpct=cap?Math.round(used/cap*100):0;
     if(!G.storRes)G.storRes={};
@@ -9527,10 +9645,17 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
           if(cityMode==='minimum'&&amt>res[g])resBadge=' <span class="tg" style="font-size:9px;color:var(--a);border-color:rgba(61,214,140,.3)">📊 '+res[g]+' geschützt · '+(amt-res[g])+' frei</span>';
           else resBadge=' <span class="tg" style="font-size:9px;color:var(--a2);border-color:rgba(56,189,248,.3)">📋 '+res[g]+' res.</span>';
         }
-        let prodBadge='';if(_pr[g]){const pm=Math.round(_pr[g]*60*10)/10;prodBadge=' <span class="sub" style="color:var(--a);font-size:9px">(+'+pm+'/min)</span>'}
-        h+='<span style="flex:1;min-width:0">'+(GOODS[g]?.em||'')+' '+(GOODS[g]?.name||'')+' <b>'+amt+'</b>'+resBadge+prodBadge+' <span class="sub">'+price.toLocaleString('de-DE')+'€/St.</span></span>';
+        let prodBadge='';let trendBadge='';
+        if(_pr[g]){const pm=Math.round(_pr[g]*60*10)/10;prodBadge=' <span class="sub" style="color:var(--a);font-size:9px">(+'+pm+'/min)</span>'}
+        // 2.4: Trend arrow based on production vs consumption
+        const prodRate=_pr[g]||0;const consumeRate=_cr&&_cr[g]?_cr[g]:0;
+        if(prodRate>0&&consumeRate>0){const net=prodRate-consumeRate;trendBadge=net>0.01?' <span class="trend-up">▲</span>':net<-0.01?' <span class="trend-down">▼</span>':' <span class="trend-flat">●</span>'}
+        else if(prodRate>0)trendBadge=' <span class="trend-up">▲</span>';
+        h+='<span style="flex:1;min-width:0">'+(GOODS[g]?.em||'')+' '+(GOODS[g]?.name||'')+' <b>'+amt+'</b>'+trendBadge+resBadge+prodBadge+' <span class="sub">'+price.toLocaleString('de-DE')+'€/St.</span></span>';
         if(vHere.length)h+='<button class="btn sm" style="background:rgba(251,191,36,.1);color:var(--go);border-color:rgba(251,191,36,.25)" onclick="showMarketSellPopup(\''+c.id+'\',\''+g+'\')">💰 Verkauf</button>';
         if(cities.length>1)h+='<button class="btn sm" onclick="showSendGoodsPopup(\''+c.id+'\',\''+g+'\','+amt+')" title="An anderen Standort versenden">📦 Senden</button>';
+        // 3.3: Quick standing order button
+        if(cities.length>1&&amt>=5)h+='<button class="btn sm" style="font-size:9px;color:var(--go);border-color:rgba(251,191,36,.2)" onclick="if(typeof _quickDAFromInv===\'function\')_quickDAFromInv(\''+c.id+'\',\''+g+'\')" title="Dauerauftrag erstellen">🔄</button>';
         h+='<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.25);opacity:.4" onclick="adminDiscardGoods(\''+c.id+'\',\''+g+'\','+amt+')" title="Waren entsorgen">🗑️</button>';
         h+='</div>'});
     } else h+='<div class="sub" style="text-align:center;padding:8px;opacity:.5">Leer'+(G._invCat!=='all'?' (Filter aktiv)':'')+'</div>';
@@ -10391,6 +10516,17 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
     h+='<span>📦 '+used+'/'+cap+' <span style="color:'+(pct>90?'var(--r)':'var(--td)')+'">('+pct+'%)</span></span>';
     h+='<div class="pb" style="width:60px;height:4px;margin:0"><div class="pf" style="width:'+pct+'%;background:'+(pct>90?'var(--r)':'var(--a)')+'"></div></div>';
     h+='<span>🚛 '+usedDepot+'/'+totalDepot+'</span></div>';
+    // 2.3: Production summary
+    const _prodR=typeof _cityProdRates==='function'?_cityProdRates(c.id):{};
+    const prodKeys=Object.keys(_prodR).filter(g=>_prodR[g]>0);
+    if(prodKeys.length){
+      h+='<div style="margin-bottom:8px;padding:6px 8px;border-radius:6px;border:1px solid var(--bd);background:rgba(255,255,255,.02);font-size:10px">';
+      h+='<div style="font-weight:600;margin-bottom:3px;color:var(--a);font-size:11px">📊 Produktion/min</div>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:4px">';
+      prodKeys.sort((a,b2)=>_prodR[b2]-_prodR[a]).forEach(g=>{const pm=Math.round(_prodR[g]*60*10)/10;
+        h+='<span class="tg g" style="font-size:9px">'+(GOODS[g]?.em||'')+' +'+pm+'</span>'});
+      h+='</div></div>';
+    }
     // Collapsible Infra section
     const existing=G.infra[c.id]||[];const inf=infraText(c);
     h+='<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;margin:8px 0 6px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="window._showInfra=!window._showInfra;renComp()">';
@@ -10484,6 +10620,9 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
       h+='<div style="padding:12px;text-align:center;color:var(--r);font-weight:600">⛔ Maximale Gebäudeanzahl erreicht ('+maxB+')</div>';
     } else if(usedSlots(c.id)<maxB){
       const available=Object.entries(BLD).filter(([k])=>canBuildInCity(k,c.id));
+      // 3.5: Building search filter
+      h+='<input class="sl" id="_bldSearch" style="width:100%;margin-bottom:8px;font-size:12px;padding:6px 10px" placeholder="🔍 Gebäude suchen..." value="'+(G._bldSearch||'')+'" oninput="G._bldSearch=this.value;renComp()" onfocus="renderBlocked=true" onblur="setTimeout(()=>{renderBlocked=false},200)"/>';
+      const bldQ=(G._bldSearch||'').toLowerCase();
       // Build recommendations: check what raw materials are available
       const localGoods=new Set();Object.keys(G.stor[c.id]||{}).forEach(g=>{if((G.stor[c.id][g]||0)>0)localGoods.add(g)});
       (bs||[]).forEach(b=>{if(b.localStor)Object.keys(b.localStor).forEach(g=>{if(b.localStor[g]>0)localGoods.add(g)})});
@@ -10503,7 +10642,7 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
         h+='</div>'}
       if(available.length){h+='<div class="sec-label">Verfügbar (Level '+lvl+')</div><div class="bgr">';
         const freeSlots=maxB-usedSlots(c.id);
-        available.filter(([k])=>!recommended.has(k)).forEach(([k,d])=>{const slotsNeeded=d.slots||1;const noMoney=G.money<d.price;const noSpace=slotsNeeded>freeSlots;
+        available.filter(([k,d])=>!recommended.has(k)&&(!bldQ||d.name.toLowerCase().includes(bldQ)||d.desc.toLowerCase().includes(bldQ)||(d.prod&&d.prod.includes(bldQ)))).forEach(([k,d])=>{const slotsNeeded=d.slots||1;const noMoney=G.money<d.price;const noSpace=slotsNeeded>freeSlots;
           h+='<div class="bb '+(noMoney||noSpace?'off':'')+'" onclick="'+(noSpace?'':'bld(\''+c.id+'\',\''+k+'\')')+'"><div class="e">'+d.em+'</div><div>'+d.name+'</div><div class="sub">'+d.desc+'</div><div class="p">'+(noSpace?'<span style="color:var(--r)">'+slotsNeeded+' Plätze nötig</span>':fmt(d.price))+'</div></div>'});
         h+='</div>'}
       // Locked groups (collapsed)
@@ -12447,9 +12586,10 @@ function openSettings(){
     if(!G.toastOff)G.toastOff={};
     var toastCats=[
       ['delivery','✅ Lieferung abgeschlossen','Auftrag geliefert, Belohnung erhalten'],
-      ['order','📋 Auftrags-Updates','Angenommen, storniert, abgelaufen'],
+      ['order','📋 Auftrags-Updates','Neue Aufträge, Express, storniert, abgelaufen'],
       ['vehicle','🚛 Fahrzeug-Updates','Zuweisung, Rückkehr, Wartung'],
-      ['production','🏭 Produktion','Lager voll, Engpässe, Reservierungen'],
+      ['stock','📦 Lagerbestands-Warnungen','Reservierungen fast leer, Engpässe'],
+      ['production','🏭 Produktion','Lager voll, Überlauf'],
       ['event','🌍 Events','Krisen, Booms, globale Events']
     ];
     toastCats.forEach(function(tc2){var id2=tc2[0],lbl2=tc2[1],desc=tc2[2];
@@ -13852,6 +13992,16 @@ function launchGame(sc){
   if(typeof checkTutorial==='function')checkTutorial();
   if(!saveIv)saveIv=setInterval(save,60000);
   if(!saveCacheIv)saveCacheIv=setInterval(saveCache,120000); // Save cache every 2min
+  // 5.6: Welcome back + session tracking
+  if(G){
+    G._sessionStart=Date.now();
+    const lastTs=G._lastSessionEnd||0;const awayMin=lastTs?Math.round((Date.now()-lastTs)/60000):0;
+    if(awayMin>60&&G.onDuty===false){
+      const lastDels=(G.history||[]).filter(x=>x.ts&&x.ts>lastTs).length;
+      const openOrd=G.orders.filter(o=>!o.acc).length;
+      setTimeout(()=>{if(typeof toast==='function')toast('👋 Willkommen zurück!'+(lastDels?' Letzte Session: '+lastDels+' Lieferungen.':'')+(openOrd?' '+openOrd+' neue Aufträge warten.':''),'var(--a)',4000)},1500);
+    }
+  }
 }
 
 // ═══ ONE-TIME MIGRATION: personal → shared storage for system keys ═══
@@ -13934,4 +14084,21 @@ bindAll();
 window.lxReady = true;
 document.dispatchEvent(new Event('lxReady'));
 
+
+// 4.1: Long-press tooltip for mobile tabs
+(function(){
+  let _tip=null,_timer=null;
+  const names={missions:'Missionen',dealer:'Händler',fleet:'Fuhrpark',inventory:'Lager',market:'Markt',logistics:'Logistik',buildings:'Gebäude'};
+  document.addEventListener('touchstart',e=>{
+    const tab=e.target.closest('.ctab');if(!tab)return;
+    const ct=tab.dataset.ct;if(!ct||!names[ct])return;
+    _timer=setTimeout(()=>{
+      if(!_tip){_tip=document.createElement('div');_tip.className='ctab-tooltip';document.body.appendChild(_tip)}
+      const r=tab.getBoundingClientRect();_tip.textContent=names[ct];_tip.style.left=(r.left+r.width/2)+'px';_tip.style.top=(r.top-30)+'px';_tip.style.transform='translateX(-50%)';_tip.classList.add('show');
+      setTimeout(()=>{if(_tip)_tip.classList.remove('show')},1500);
+    },500);
+  },{passive:true});
+  document.addEventListener('touchend',()=>{if(_timer)clearTimeout(_timer);_timer=null},{passive:true});
+  document.addEventListener('touchmove',()=>{if(_timer)clearTimeout(_timer);_timer=null},{passive:true});
+})();
 
