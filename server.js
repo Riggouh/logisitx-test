@@ -145,10 +145,10 @@ function clearAuthRate(user){delete _authRate[user.toLowerCase()]}
 // ── Key Validation ──
 const KEY_PREFIXES=[
   'lx_save_','lx_cache','lx_feedback','lx_events_global','lx_reload_','lx_ratelimit_',
-  'lx_announce','lx_adminmsg_',
+  'lx_announce','lx_adminmsg_','lx_admin_log',
   'lb:','pm:','pm_credit:','alliances','terr_owners','terr_market','ally_market'
 ];
-const BLOCKED_KEYS=['lx_users','lx_admin_hash_v2','lx_admin_log'];
+const BLOCKED_KEYS=['lx_users','lx_admin_hash_v2'];
 // Keys only writable by admin (not regular users)
 const ADMIN_ONLY_WRITE=['lx_reload_','lx_adminmsg_','lx_announce'];
 
@@ -217,7 +217,7 @@ function setHeaders(req,res){
   res.setHeader('X-Frame-Options','SAMEORIGIN');
   res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
 }
-const CSP="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de; connect-src 'self'";
+const CSP="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de; connect-src 'self' router.project-osrm.org";
 
 // ── Body parser helper ──
 function readBody(req,maxSize,cb){

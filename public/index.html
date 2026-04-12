@@ -13981,335 +13981,6 @@ function _adminScanAlerts(saves,users){
 }
 
 // ══════════════════════════════════════════
-// GAME BINDINGS – DOM implementations for all game/ UI callbacks
-// Registers: _screenUI, _pmUI, _orderUI, _vehUI, _economyUI,
-//            _adminPanUI, _adminActUI, _dutyUI, _citySellUI, _marketSellUI
-// ══════════════════════════════════════════
-
-// ── Screen transitions (used by state.js doLogout/reset) ──
-registerScreenUI({
-  showLogin:()=>{
-    document.getElementById('loginScreen').style.display='flex';
-    document.getElementById('startScreen').style.display='none';
-  },
-  hideGameScreens:()=>{
-    ['gameScreen','computer','topBar'].forEach(id=>{
-      const e=document.getElementById(id);if(e)e.style.display='none';
-    });
-  },
-  showStartClean:()=>{
-    document.getElementById('startScreen').style.display='flex';
-    ['gameScreen','computer','topBar'].forEach(id=>{
-      const e=document.getElementById(id);if(e)e.style.display='none';
-    });
-    startIn.value='';
-    startRes.innerHTML='<div class="start-hint">z.B. "Alzey", "Berlin", "Tokyo"...</div>';
-    startIn.focus();
-  }
-});
-
-// ── Player Marketplace ──
-registerPmUI({
-  getCreateGood:()=>document.getElementById('pmSelGood')?.value||'',
-  getCreateValues:()=>{
-    const cid=document.getElementById('pmSelCity')?.value||'';
-    const cityStock=parseInt(document.getElementById('pmSelCity')?.selectedOptions[0]?.dataset.stock||0,10);
-    return{
-      good:document.getElementById('pmSelGood')?.value||'',
-      cid,
-      amt:document.getElementById('pmAmt')?.value||0,
-      price:document.getElementById('pmPrice')?.value||0,
-      cityStock
-    };
-  },
-  setCreateBody:(h)=>{const el=document.getElementById('pmCreateBody');if(el)el.innerHTML=h;},
-  setCreateActions:(h)=>{const el=document.getElementById('pmCreateActions');if(el)el.innerHTML=h;},
-  setCalc:(h)=>{const el=document.getElementById('pmCalc');if(el)el.innerHTML=h;},
-  setAmtMax:(max)=>{
-    ['pmAmt','pmAmtN'].forEach(id=>{const el=document.getElementById(id);if(el)el.max=max;});
-  },
-  getPickupDest:()=>document.getElementById('pmPickupDest')?.value||''
-});
-
-// ── Vehicle assignment modal ──
-registerOrderUI({
-  setModalTitle:(t)=>{const el=document.getElementById('mT');if(el)el.textContent=t;},
-  setModalBody:(h)=>{const el=document.getElementById('mB');if(el)el.innerHTML=h;},
-  showModal:()=>{const el=document.getElementById('mBg');if(el)el.style.display='flex';},
-  hideModal:()=>{const el=document.getElementById('mBg');if(el)el.style.display='none';},
-  getCheckedVehicles:(all)=>[...document.querySelectorAll(
-    all?'#mB input[type=checkbox]':'#mB input[type=checkbox]:checked'
-  )],
-  setAssignStatus:(h)=>{const el=document.getElementById('asgnStatus');if(el)el.innerHTML=h;},
-  setAssignButton:(enabled)=>{const btn=document.getElementById('asgnGoBtn');if(btn)btn.disabled=!enabled;}
-});
-
-// ── Vehicle maintenance settings ──
-registerVehUI({
-  getAMSettings:()=>({
-    dist:document.getElementById('amDistSlider')?.value??50,
-    minLoad:document.getElementById('amMinLoad')?.checked??true,
-    priority:document.getElementById('amPriority')?.value||'reward'
-  }),
-  getMaintPct:()=>parseInt(document.getElementById('amPctSlider')?.value||40,10)
-});
-
-// ── Economy: feedback banner ──
-registerEconomyUI({
-  showFeedbackBanner:(question,key)=>{
-    const el=document.createElement('div');el.id='fbBanner';
-    el.style.cssText='position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:10px 16px;font-size:13px;z-index:9999;display:flex;gap:8px;align-items:center;max-width:340px;box-shadow:0 2px 12px rgba(0,0,0,.3)';
-    el.innerHTML='<span style="flex:1">'+question+'</span>'+
-      '<button style="font-size:18px;background:none;border:none;cursor:pointer;padding:4px" onclick="_submitFb(\''+key+'\',1)">👍</button>'+
-      '<button style="font-size:18px;background:none;border:none;cursor:pointer;padding:4px" onclick="_submitFb(\''+key+'\',0)">👎</button>'+
-      '<button style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--td);padding:4px" onclick="document.getElementById(\'fbBanner\')?.remove()">✕</button>';
-    document.body.appendChild(el);
-    setTimeout(()=>{const b=document.getElementById('fbBanner');if(b)b.remove()},15000);
-  },
-  hideFeedbackBanner:()=>{const b=document.getElementById('fbBanner');if(b)b.remove();}
-});
-
-// ── Admin panel create/login ──
-registerAdminPanUI({
-  getOrCreatePanel:(open)=>{
-    let panel=document.getElementById('adminPanel');
-    if(open===false){if(panel)panel.remove();return null;}
-    if(panel)panel.remove();
-    panel=document.createElement('div');panel.id='adminPanel';panel.className='admin-bg';
-    document.body.appendChild(panel);
-    return panel;
-  },
-  setLoginHtml:(h)=>{
-    const panel=document.getElementById('adminPanel');
-    if(panel){
-      panel.innerHTML=h;
-      setTimeout(()=>{
-        const inp=document.getElementById('adminPwInput');
-        if(inp){inp.focus();inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();adminLogin();}})}
-      },100);
-    }
-  },
-  setAdminHtml:(h)=>{const panel=document.getElementById('adminPanel');if(panel)panel.innerHTML=h;},
-  getPasswordInput:()=>{const inp=document.getElementById('adminPwInput');return inp?inp.value:'';},
-  setPasswordError:(msg)=>{const el=document.getElementById('adminPwErr');if(el)el.textContent=msg;}
-});
-
-// ── Admin actions form reads ──
-registerAdminActUI({
-  getAdminMoney:()=>parseInt(document.getElementById('adminMoney')?.value||0,10),
-  getPlayerMoney:()=>parseInt(document.getElementById('adminPlayerMoney')?.value||0,10),
-  showPlayerMsg:(msg)=>{const el=document.getElementById('adminPlayerMsg');if(el)el.innerHTML=msg;},
-  getAllMoney:()=>parseInt(document.getElementById('adminAllMoney')?.value||0,10),
-  showAllMsg:(msg)=>{const el=document.getElementById('adminAllMsg');if(el)el.innerHTML=msg;},
-  getTickCount:()=>parseInt(document.getElementById('adminTicks')?.value||0,10),
-  triggerLogExport:(blob)=>{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);a.download='logistix-admin-log.json';a.click();
-  },
-  getAdminChartCanvas:()=>document.getElementById('adminChart'),
-  getAnnounceText:()=>document.getElementById('adminAnnounce')?.value||''
-});
-
-// ── Duty button + help popup ──
-registerDutyUI({
-  updateDutyBtn:(on)=>{
-    const btn=document.getElementById('dutyBtn');if(!btn)return;
-    btn.innerHTML=on?'🟢<span class="duty-text"> On Duty</span>':'🔴<span class="duty-text"> Off Duty</span>';
-  },
-  showDutyHelp:()=>{
-    let existing=document.getElementById('dutyHelpPopup');
-    if(existing){existing.remove();return;}
-    // duty help popup is rendered by the existing toggleDutyHelp logic in duty.js
-  }
-});
-
-// ── City sell popup ──
-registerCitySellUI({
-  removeSellPopup:()=>{const el=document.getElementById('sellCityPopup');if(el)el.remove();},
-  getRelocateVeh:(vid)=>{
-    const sel=document.getElementById('reloc_'+vid);
-    return sel?sel.value:null;
-  }
-});
-
-// ── Market sell form reads/writes ──
-registerMarketSellUI({
-  getAmt:()=>parseInt(document.getElementById('mktAmt')?.value||1,10),
-  setCalc:(h)=>{const el=document.getElementById('mktCalc');if(el)el.innerHTML=h;},
-  syncAmtNum:(v)=>{const el=document.getElementById('mktAmtN');if(el)el.value=v;}
-});
-
-// ── Admin panel rendering ──
-registerAdminRenderUI({
-  getPanel:()=>document.getElementById('adminPanel'),
-  getFbContent:()=>document.getElementById('adminFbContent')
-});
-// ══════════════════════════════════════════
-// SETTINGS UI – openSettings popup
-// ══════════════════════════════════════════
-
-function openSettings(){
-  if(!G)return;_initSettings();
-  const s=G.settings;
-  if(!window._setTab)window._setTab='map';
-  const tab=window._setTab;
-  let h='';
-
-  // Header
-  h+='<div class="center-mb12">'+
-     '<span style="font-size:28px">⚙️</span>'+
-     '<div class="mono-hero">Einstellungen</div></div>';
-
-  // Tabs
-  h+='<div style="display:flex;gap:0;border-bottom:1px solid var(--bd);margin-bottom:12px">';
-  [['map','🗺️ Karte'],['orders','📋 Aufträge'],['system','⚙️ System']].forEach(([id,lbl])=>{
-    const on=tab===id;
-    h+='<button style="flex:1;padding:8px 4px;font-size:12px;font-family:var(--mono);'+
-       'font-weight:'+(on?'700':'500')+';color:'+(on?'var(--a)':'var(--td)')+';'+
-       'background:'+(on?'rgba(61,214,140,.08)':'transparent')+';border:none;'+
-       'border-bottom:2px solid '+(on?'var(--a)':'transparent')+';cursor:pointer;transition:.15s"'+
-       ' onclick="window._setTab=\''+id+'\';openSettings()">'+lbl+'</button>';
-  });
-  h+='</div>';
-
-  if(tab==='map'){
-    h+=secLabel('Kartenstil');
-    h+=crd('<select class="sl" style="width:100%;font-size:13px;padding:6px 8px"'+
-           ' onchange="G.settings.mapStyle=this.value;save();_applyMapStyle()">'+
-           [['standard','🗺️ Standard'],['clean','🧭 Clean'],['topo','⛰️ Gelände'],['sat','🛰️ Satellit'],['dark','🌙 Dunkel']]
-             .map(([v,l])=>'<option value="'+v+'"'+(s.mapStyle===v?' selected':'')+'>'+l+'</option>').join('')+
-           '</select>'+sub('Wird beim nächsten Öffnen der Karte angewendet','margin-top:4px'));
-
-    h+=secLabel('Anzeige','margin-top:10px');
-    h+=crd(chk(s.minimap,'G.settings.minimap=this.checked;save();toggleMinimap()',
-               'Minimap im Terminal','Kleine Karte unten rechts im Terminal'));
-    h+=crd(chk(s.showUnowned,
-               'G.settings.showUnowned=this.checked;save();if(typeof showUnownedCities===\'function\'){if(this.checked)showUnownedCities();else{_unownedMk.forEach(m=>MP.removeLayer(m));_unownedMk=[]}}',
-               'Freischaltbare Städte auf Karte','Goldene Punkte für kaufbare Städte in der Nähe'));
-
-  } else if(tab==='orders'){
-    h+=secLabel('Filter');
-    h+=crd('<div class="sec-title">Mindest-Belohnung</div>'+
-           '<div style="display:flex;gap:6px;align-items:center">'+
-           '<input type="range" min="0" max="50000" step="1000" value="'+(s.minReward||0)+'"'+
-           ' class="range-input"'+
-           ' oninput="G.settings.minReward=+this.value;document.getElementById(\'_minRewVal\').textContent=this.value>0?fmt(this.value)+\' €\':\'Aus\';save()"/>'+
-           '<span id="_minRewVal" style="font-family:var(--mono);font-size:12px;min-width:60px;text-align:right">'+
-           (s.minReward>0?fmt(s.minReward)+' €':'Aus')+'</span></div>'+
-           sub('Aufträge unter diesem Wert werden ausgeblendet','margin-top:4px'));
-
-    h+=secLabel('Sortierung','margin-top:10px');
-    h+=crd(chk(s.expressFirst,'G.settings.expressFirst=this.checked;save()',
-               'Express-Aufträge oben anzeigen','⚡ Express-Aufträge werden vor normalen sortiert','var(--go)'));
-
-    // Auto-Manager
-    h+=secLabel('🤖 Auto-Manager'+(G.amUnlocked?'':' <span style="color:var(--td);font-weight:400">(ab Level 5)</span>'),'margin-top:10px');
-    if(G.amUnlocked){
-      h+=crd(chk(G.autoManager,'G.autoManager=this.checked;save();openSettings()','Auto-Manager aktiv','Weist automatisch Fahrzeuge zu Aufträgen zu'));
-      if(G.autoManager){
-        h+=crd('<div class="sec-title">Max. Reichweite</div>'+
-               '<div style="display:flex;gap:6px;align-items:center">'+
-               '<input type="range" min="0" max="500" step="10" value="'+(G.amMaxDist||50)+'"'+
-               ' class="range-input"'+
-               ' oninput="G.amMaxDist=+this.value;document.getElementById(\'_amDistVal\').textContent=this.value==0?\'Nur lokal\':this.value+\' km\';save()"/>'+
-               '<span id="_amDistVal" style="font-family:var(--mono);font-size:12px;min-width:70px;text-align:right">'+
-               ((G.amMaxDist||50)===0?'Nur lokal':(G.amMaxDist||50)+' km')+'</span></div>');
-        h+=crd('<div class="sec-title">Priorität</div>'+
-               '<select class="sl" style="width:100%;font-size:13px;padding:6px 8px" onchange="G.amPriority=this.value;save()">'+
-               [['reward','💰 Höchste Belohnung'],['deadline','⏱️ Kürzeste Deadline'],['express','⚡ Express bevorzugt'],['fifo','📋 Reihenfolge (FIFO)']]
-                 .map(([v,l])=>'<option value="'+v+'"'+((G.amPriority||'reward')===v?' selected':'')+'>'+l+'</option>').join('')+
-               '</select>');
-      }
-    } else {
-      h+=crd(sub('Noch nicht freigeschaltet (Level 5 + 25.000€)','text-align:center;padding:4px'));
-    }
-
-    // Auto-Wartung
-    h+=secLabel('🔧 Auto-Wartung'+(playerLvl()>=8?'':' <span style="color:var(--td);font-weight:400">(ab Level 8)</span>'),'margin-top:10px');
-    if(playerLvl()>=8){
-      h+=crd(chk(G.autoMaint,'G.autoMaint=this.checked;save();openSettings()','Auto-Wartung aktiv','Repariert Fahrzeuge automatisch unter der Schwelle'));
-      if(G.autoMaint){
-        h+=crd('<div class="sec-title">Wartungsschwelle</div>'+
-               '<div style="display:flex;gap:6px;align-items:center">'+
-               '<input type="range" min="20" max="60" step="5" value="'+(G.autoMaintPct||40)+'"'+
-               ' class="range-input"'+
-               ' oninput="G.autoMaintPct=+this.value;document.getElementById(\'_amPctVal\').textContent=this.value+\' %\';save()"/>'+
-               '<span id="_amPctVal" style="font-family:var(--mono);font-size:12px;min-width:40px;text-align:right">'+
-               (G.autoMaintPct||40)+' %</span></div>'+
-               sub('Fahrzeuge werden repariert wenn Zustand unter diese Schwelle fällt','margin-top:4px'));
-      }
-    } else {
-      h+=crd(sub('Noch nicht verfügbar (ab Level 8)','text-align:center;padding:4px'));
-    }
-
-    // Toast notifications
-    h+=secLabel('🔔 Benachrichtigungen','margin-top:10px');
-    if(!G.toastOff)G.toastOff={};
-    let toastCats=[
-      ['delivery','✅ Lieferung abgeschlossen','Auftrag geliefert, Belohnung erhalten'],
-      ['order','📋 Auftrags-Updates','Neue Aufträge, Express, storniert, abgelaufen'],
-      ['vehicle','🚛 Fahrzeug-Updates','Zuweisung, Rückkehr, Wartung'],
-      ['stock','📦 Lagerbestands-Warnungen','Reservierungen fast leer, Engpässe'],
-      ['production','🏭 Produktion','Lager voll, Überlauf'],
-      ['event','🌍 Events','Krisen, Booms, globale Events']
-    ];
-    toastCats.forEach(tc2=>{let id2=tc2[0],lbl2=tc2[1],desc=tc2[2];
-      h+=crd(chk(!G.toastOff[id2],'if(!G.toastOff)G.toastOff={};G.toastOff.'+id2+'=!this.checked;save()',lbl2,desc));
-    });
-
-  } else if(tab==='system'){
-    h+=secLabel('Konto');
-    h+=crd(rw('👤 Benutzer','<span class="mono-val">'+sanitize(currentUser)+'</span>'));
-    h+=crd('<div class="sec-title">🔑 Passwort ändern</div>'+
-           '<input type="password" id="setNewPw" class="sl" placeholder="Neues Passwort" style="width:100%;margin-bottom:6px;font-size:13px"/>'+
-           btnFull('const p=document.getElementById(\'setNewPw\').value;if(p.length<3){toast(\'Mindestens 3 Zeichen\',\'var(--r)\');return}changePassword(p).then(()=>{toast(\'✅ Passwort geändert\')}).catch(()=>{})',
-                   'Ändern'));
-
-    h+=secLabel('Benachrichtigungen','margin-top:10px');
-    if(typeof Notification!=='undefined'){
-      const perm=Notification.permission;
-      if(perm==='granted')
-        h+=crd(rw('🔔 Browser-Benachrichtigungen','<span style="color:var(--a)">✅ Aktiv</span>')+
-               sub('Benachrichtigung wenn Lager >90% voll (bei inaktivem Tab)'));
-      else if(perm==='denied')
-        h+=crd(rw('🔕 Benachrichtigungen','<span style="color:var(--r)">Blockiert</span>')+
-               sub('In Browser-Einstellungen erlauben'));
-      else
-        h+=crd(btnFull('Notification.requestPermission().then(p=>{openSettings()}).catch(()=>{})','🔔 Benachrichtigungen aktivieren'));
-    }
-
-    h+=secLabel('Off-Duty Timer','margin-top:10px');
-    h+=crd('<div class="sec-title">Automatisch Off-Duty nach Inaktivität</div>'+
-           '<div class="flex-gap4">'+
-           [1,2,3].map(d=>{
-             const on=s.offDutyDays===d;
-             return'<button class="btn sm'+(on?' on':'')+'" style="flex:1;'+
-                   (on?'background:var(--a);color:var(--bg);border-color:var(--a)':'')+
-                   '" onclick="setOffDutyDays('+d+')">'+d+(d===1?' Tag':' Tage')+'</button>';
-           }).join('')+
-           '</div>'+sub('Spart Wartungskosten bei längerer Abwesenheit (max. 3 Tage)','margin-top:4px'));
-
-    h+=secLabel('Cache','margin-top:10px');
-    h+=crd(btnFull('if(typeof clearRouteCache===\'function\')clearRouteCache();if(typeof clearSearchCache===\'function\')clearSearchCache();toast(\'🗑️ Cache geleert\')','🗑️ Route-Cache leeren')+
-           sub('Gespeicherte Routen und Suchergebnisse löschen','margin-top:4px'));
-
-    h+=secLabel('Info','margin-top:10px');
-    h+=crd('<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px">'+
-           '<span class="sub">📦 v7.0</span>'+
-           '<span class="sub">⏱️ '+ftime(getTick()||0)+' Spielzeit</span>'+
-           '<span class="sub">📦 '+(getDeliveries()||0)+' Lieferungen</span>'+
-           '</div>');
-
-    h+=secLabel('Gefahrenzone','margin-top:14px;color:var(--r)');
-    h+=crd(btnFull('if(confirm(\'Spielstand wirklich löschen? Das kann nicht rückgängig gemacht werden!\')){deleteSave();closePopup(\'settingsPopup\');location.reload()}','🗑️ Spielstand löschen','red'),
-           'border-color:rgba(248,113,113,.2)');
-    h+=crd(btnFull('closePopup(\'settingsPopup\');doLogout()','🚪 Abmelden','red'),'margin-top:8px');
-  }
-
-  h+=btnFull('closePopup(\'settingsPopup\')','Schließen','sec') ;
-  createPopup('settingsPopup',h,{maxWidth:'480px'});
-}
-// ══════════════════════════════════════════
 // ADMIN UI – renderAdmin, renderAdminPlayer
 // ══════════════════════════════════════════
 
@@ -15332,6 +15003,335 @@ async function _checkAnnouncement(){
     addLog('📢 Admin: '+d.msg);
     toast('📢 '+d.msg,'#f0883e',8000);
   }catch(e){}
+}
+// ══════════════════════════════════════════
+// GAME BINDINGS – DOM implementations for all game/ UI callbacks
+// Registers: _screenUI, _pmUI, _orderUI, _vehUI, _economyUI,
+//            _adminPanUI, _adminActUI, _dutyUI, _citySellUI, _marketSellUI
+// ══════════════════════════════════════════
+
+// ── Screen transitions (used by state.js doLogout/reset) ──
+registerScreenUI({
+  showLogin:()=>{
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('startScreen').style.display='none';
+  },
+  hideGameScreens:()=>{
+    ['gameScreen','computer','topBar'].forEach(id=>{
+      const e=document.getElementById(id);if(e)e.style.display='none';
+    });
+  },
+  showStartClean:()=>{
+    document.getElementById('startScreen').style.display='flex';
+    ['gameScreen','computer','topBar'].forEach(id=>{
+      const e=document.getElementById(id);if(e)e.style.display='none';
+    });
+    startIn.value='';
+    startRes.innerHTML='<div class="start-hint">z.B. "Alzey", "Berlin", "Tokyo"...</div>';
+    startIn.focus();
+  }
+});
+
+// ── Player Marketplace ──
+registerPmUI({
+  getCreateGood:()=>document.getElementById('pmSelGood')?.value||'',
+  getCreateValues:()=>{
+    const cid=document.getElementById('pmSelCity')?.value||'';
+    const cityStock=parseInt(document.getElementById('pmSelCity')?.selectedOptions[0]?.dataset.stock||0,10);
+    return{
+      good:document.getElementById('pmSelGood')?.value||'',
+      cid,
+      amt:document.getElementById('pmAmt')?.value||0,
+      price:document.getElementById('pmPrice')?.value||0,
+      cityStock
+    };
+  },
+  setCreateBody:(h)=>{const el=document.getElementById('pmCreateBody');if(el)el.innerHTML=h;},
+  setCreateActions:(h)=>{const el=document.getElementById('pmCreateActions');if(el)el.innerHTML=h;},
+  setCalc:(h)=>{const el=document.getElementById('pmCalc');if(el)el.innerHTML=h;},
+  setAmtMax:(max)=>{
+    ['pmAmt','pmAmtN'].forEach(id=>{const el=document.getElementById(id);if(el)el.max=max;});
+  },
+  getPickupDest:()=>document.getElementById('pmPickupDest')?.value||''
+});
+
+// ── Vehicle assignment modal ──
+registerOrderUI({
+  setModalTitle:(t)=>{const el=document.getElementById('mT');if(el)el.textContent=t;},
+  setModalBody:(h)=>{const el=document.getElementById('mB');if(el)el.innerHTML=h;},
+  showModal:()=>{const el=document.getElementById('mBg');if(el)el.style.display='flex';},
+  hideModal:()=>{const el=document.getElementById('mBg');if(el)el.style.display='none';},
+  getCheckedVehicles:(all)=>[...document.querySelectorAll(
+    all?'#mB input[type=checkbox]':'#mB input[type=checkbox]:checked'
+  )],
+  setAssignStatus:(h)=>{const el=document.getElementById('asgnStatus');if(el)el.innerHTML=h;},
+  setAssignButton:(enabled)=>{const btn=document.getElementById('asgnGoBtn');if(btn)btn.disabled=!enabled;}
+});
+
+// ── Vehicle maintenance settings ──
+registerVehUI({
+  getAMSettings:()=>({
+    dist:document.getElementById('amDistSlider')?.value??50,
+    minLoad:document.getElementById('amMinLoad')?.checked??true,
+    priority:document.getElementById('amPriority')?.value||'reward'
+  }),
+  getMaintPct:()=>parseInt(document.getElementById('amPctSlider')?.value||40,10)
+});
+
+// ── Economy: feedback banner ──
+registerEconomyUI({
+  showFeedbackBanner:(question,key)=>{
+    const el=document.createElement('div');el.id='fbBanner';
+    el.style.cssText='position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:10px 16px;font-size:13px;z-index:9999;display:flex;gap:8px;align-items:center;max-width:340px;box-shadow:0 2px 12px rgba(0,0,0,.3)';
+    el.innerHTML='<span style="flex:1">'+question+'</span>'+
+      '<button style="font-size:18px;background:none;border:none;cursor:pointer;padding:4px" onclick="_submitFb(\''+key+'\',1)">👍</button>'+
+      '<button style="font-size:18px;background:none;border:none;cursor:pointer;padding:4px" onclick="_submitFb(\''+key+'\',0)">👎</button>'+
+      '<button style="font-size:14px;background:none;border:none;cursor:pointer;color:var(--td);padding:4px" onclick="document.getElementById(\'fbBanner\')?.remove()">✕</button>';
+    document.body.appendChild(el);
+    setTimeout(()=>{const b=document.getElementById('fbBanner');if(b)b.remove()},15000);
+  },
+  hideFeedbackBanner:()=>{const b=document.getElementById('fbBanner');if(b)b.remove();}
+});
+
+// ── Admin panel create/login ──
+registerAdminPanUI({
+  getOrCreatePanel:(open)=>{
+    let panel=document.getElementById('adminPanel');
+    if(open===false){if(panel)panel.remove();return null;}
+    if(panel)panel.remove();
+    panel=document.createElement('div');panel.id='adminPanel';panel.className='admin-bg';
+    document.body.appendChild(panel);
+    return panel;
+  },
+  setLoginHtml:(h)=>{
+    const panel=document.getElementById('adminPanel');
+    if(panel){
+      panel.innerHTML=h;
+      setTimeout(()=>{
+        const inp=document.getElementById('adminPwInput');
+        if(inp){inp.focus();inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();adminLogin();}})}
+      },100);
+    }
+  },
+  setAdminHtml:(h)=>{const panel=document.getElementById('adminPanel');if(panel)panel.innerHTML=h;},
+  getPasswordInput:()=>{const inp=document.getElementById('adminPwInput');return inp?inp.value:'';},
+  setPasswordError:(msg)=>{const el=document.getElementById('adminPwErr');if(el)el.textContent=msg;}
+});
+
+// ── Admin actions form reads ──
+registerAdminActUI({
+  getAdminMoney:()=>parseInt(document.getElementById('adminMoney')?.value||0,10),
+  getPlayerMoney:()=>parseInt(document.getElementById('adminPlayerMoney')?.value||0,10),
+  showPlayerMsg:(msg)=>{const el=document.getElementById('adminPlayerMsg');if(el)el.innerHTML=msg;},
+  getAllMoney:()=>parseInt(document.getElementById('adminAllMoney')?.value||0,10),
+  showAllMsg:(msg)=>{const el=document.getElementById('adminAllMsg');if(el)el.innerHTML=msg;},
+  getTickCount:()=>parseInt(document.getElementById('adminTicks')?.value||0,10),
+  triggerLogExport:(blob)=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='logistix-admin-log.json';a.click();
+  },
+  getAdminChartCanvas:()=>document.getElementById('adminChart'),
+  getAnnounceText:()=>document.getElementById('adminAnnounce')?.value||''
+});
+
+// ── Duty button + help popup ──
+registerDutyUI({
+  updateDutyBtn:(on)=>{
+    const btn=document.getElementById('dutyBtn');if(!btn)return;
+    btn.innerHTML=on?'🟢<span class="duty-text"> On Duty</span>':'🔴<span class="duty-text"> Off Duty</span>';
+  },
+  showDutyHelp:()=>{
+    let existing=document.getElementById('dutyHelpPopup');
+    if(existing){existing.remove();return;}
+    // duty help popup is rendered by the existing toggleDutyHelp logic in duty.js
+  }
+});
+
+// ── City sell popup ──
+registerCitySellUI({
+  removeSellPopup:()=>{const el=document.getElementById('sellCityPopup');if(el)el.remove();},
+  getRelocateVeh:(vid)=>{
+    const sel=document.getElementById('reloc_'+vid);
+    return sel?sel.value:null;
+  }
+});
+
+// ── Market sell form reads/writes ──
+registerMarketSellUI({
+  getAmt:()=>parseInt(document.getElementById('mktAmt')?.value||1,10),
+  setCalc:(h)=>{const el=document.getElementById('mktCalc');if(el)el.innerHTML=h;},
+  syncAmtNum:(v)=>{const el=document.getElementById('mktAmtN');if(el)el.value=v;}
+});
+
+// ── Admin panel rendering ──
+registerAdminRenderUI({
+  getPanel:()=>document.getElementById('adminPanel'),
+  getFbContent:()=>document.getElementById('adminFbContent')
+});
+// ══════════════════════════════════════════
+// SETTINGS UI – openSettings popup
+// ══════════════════════════════════════════
+
+function openSettings(){
+  if(!G)return;_initSettings();
+  const s=G.settings;
+  if(!window._setTab)window._setTab='map';
+  const tab=window._setTab;
+  let h='';
+
+  // Header
+  h+='<div class="center-mb12">'+
+     '<span style="font-size:28px">⚙️</span>'+
+     '<div class="mono-hero">Einstellungen</div></div>';
+
+  // Tabs
+  h+='<div style="display:flex;gap:0;border-bottom:1px solid var(--bd);margin-bottom:12px">';
+  [['map','🗺️ Karte'],['orders','📋 Aufträge'],['system','⚙️ System']].forEach(([id,lbl])=>{
+    const on=tab===id;
+    h+='<button style="flex:1;padding:8px 4px;font-size:12px;font-family:var(--mono);'+
+       'font-weight:'+(on?'700':'500')+';color:'+(on?'var(--a)':'var(--td)')+';'+
+       'background:'+(on?'rgba(61,214,140,.08)':'transparent')+';border:none;'+
+       'border-bottom:2px solid '+(on?'var(--a)':'transparent')+';cursor:pointer;transition:.15s"'+
+       ' onclick="window._setTab=\''+id+'\';openSettings()">'+lbl+'</button>';
+  });
+  h+='</div>';
+
+  if(tab==='map'){
+    h+=secLabel('Kartenstil');
+    h+=crd('<select class="sl" style="width:100%;font-size:13px;padding:6px 8px"'+
+           ' onchange="G.settings.mapStyle=this.value;save();_applyMapStyle()">'+
+           [['standard','🗺️ Standard'],['clean','🧭 Clean'],['topo','⛰️ Gelände'],['sat','🛰️ Satellit'],['dark','🌙 Dunkel']]
+             .map(([v,l])=>'<option value="'+v+'"'+(s.mapStyle===v?' selected':'')+'>'+l+'</option>').join('')+
+           '</select>'+sub('Wird beim nächsten Öffnen der Karte angewendet','margin-top:4px'));
+
+    h+=secLabel('Anzeige','margin-top:10px');
+    h+=crd(chk(s.minimap,'G.settings.minimap=this.checked;save();toggleMinimap()',
+               'Minimap im Terminal','Kleine Karte unten rechts im Terminal'));
+    h+=crd(chk(s.showUnowned,
+               'G.settings.showUnowned=this.checked;save();if(typeof showUnownedCities===\'function\'){if(this.checked)showUnownedCities();else{_unownedMk.forEach(m=>MP.removeLayer(m));_unownedMk=[]}}',
+               'Freischaltbare Städte auf Karte','Goldene Punkte für kaufbare Städte in der Nähe'));
+
+  } else if(tab==='orders'){
+    h+=secLabel('Filter');
+    h+=crd('<div class="sec-title">Mindest-Belohnung</div>'+
+           '<div style="display:flex;gap:6px;align-items:center">'+
+           '<input type="range" min="0" max="50000" step="1000" value="'+(s.minReward||0)+'"'+
+           ' class="range-input"'+
+           ' oninput="G.settings.minReward=+this.value;document.getElementById(\'_minRewVal\').textContent=this.value>0?fmt(this.value)+\' €\':\'Aus\';save()"/>'+
+           '<span id="_minRewVal" style="font-family:var(--mono);font-size:12px;min-width:60px;text-align:right">'+
+           (s.minReward>0?fmt(s.minReward)+' €':'Aus')+'</span></div>'+
+           sub('Aufträge unter diesem Wert werden ausgeblendet','margin-top:4px'));
+
+    h+=secLabel('Sortierung','margin-top:10px');
+    h+=crd(chk(s.expressFirst,'G.settings.expressFirst=this.checked;save()',
+               'Express-Aufträge oben anzeigen','⚡ Express-Aufträge werden vor normalen sortiert','var(--go)'));
+
+    // Auto-Manager
+    h+=secLabel('🤖 Auto-Manager'+(G.amUnlocked?'':' <span style="color:var(--td);font-weight:400">(ab Level 5)</span>'),'margin-top:10px');
+    if(G.amUnlocked){
+      h+=crd(chk(G.autoManager,'G.autoManager=this.checked;save();openSettings()','Auto-Manager aktiv','Weist automatisch Fahrzeuge zu Aufträgen zu'));
+      if(G.autoManager){
+        h+=crd('<div class="sec-title">Max. Reichweite</div>'+
+               '<div style="display:flex;gap:6px;align-items:center">'+
+               '<input type="range" min="0" max="500" step="10" value="'+(G.amMaxDist||50)+'"'+
+               ' class="range-input"'+
+               ' oninput="G.amMaxDist=+this.value;document.getElementById(\'_amDistVal\').textContent=this.value==0?\'Nur lokal\':this.value+\' km\';save()"/>'+
+               '<span id="_amDistVal" style="font-family:var(--mono);font-size:12px;min-width:70px;text-align:right">'+
+               ((G.amMaxDist||50)===0?'Nur lokal':(G.amMaxDist||50)+' km')+'</span></div>');
+        h+=crd('<div class="sec-title">Priorität</div>'+
+               '<select class="sl" style="width:100%;font-size:13px;padding:6px 8px" onchange="G.amPriority=this.value;save()">'+
+               [['reward','💰 Höchste Belohnung'],['deadline','⏱️ Kürzeste Deadline'],['express','⚡ Express bevorzugt'],['fifo','📋 Reihenfolge (FIFO)']]
+                 .map(([v,l])=>'<option value="'+v+'"'+((G.amPriority||'reward')===v?' selected':'')+'>'+l+'</option>').join('')+
+               '</select>');
+      }
+    } else {
+      h+=crd(sub('Noch nicht freigeschaltet (Level 5 + 25.000€)','text-align:center;padding:4px'));
+    }
+
+    // Auto-Wartung
+    h+=secLabel('🔧 Auto-Wartung'+(playerLvl()>=8?'':' <span style="color:var(--td);font-weight:400">(ab Level 8)</span>'),'margin-top:10px');
+    if(playerLvl()>=8){
+      h+=crd(chk(G.autoMaint,'G.autoMaint=this.checked;save();openSettings()','Auto-Wartung aktiv','Repariert Fahrzeuge automatisch unter der Schwelle'));
+      if(G.autoMaint){
+        h+=crd('<div class="sec-title">Wartungsschwelle</div>'+
+               '<div style="display:flex;gap:6px;align-items:center">'+
+               '<input type="range" min="20" max="60" step="5" value="'+(G.autoMaintPct||40)+'"'+
+               ' class="range-input"'+
+               ' oninput="G.autoMaintPct=+this.value;document.getElementById(\'_amPctVal\').textContent=this.value+\' %\';save()"/>'+
+               '<span id="_amPctVal" style="font-family:var(--mono);font-size:12px;min-width:40px;text-align:right">'+
+               (G.autoMaintPct||40)+' %</span></div>'+
+               sub('Fahrzeuge werden repariert wenn Zustand unter diese Schwelle fällt','margin-top:4px'));
+      }
+    } else {
+      h+=crd(sub('Noch nicht verfügbar (ab Level 8)','text-align:center;padding:4px'));
+    }
+
+    // Toast notifications
+    h+=secLabel('🔔 Benachrichtigungen','margin-top:10px');
+    if(!G.toastOff)G.toastOff={};
+    let toastCats=[
+      ['delivery','✅ Lieferung abgeschlossen','Auftrag geliefert, Belohnung erhalten'],
+      ['order','📋 Auftrags-Updates','Neue Aufträge, Express, storniert, abgelaufen'],
+      ['vehicle','🚛 Fahrzeug-Updates','Zuweisung, Rückkehr, Wartung'],
+      ['stock','📦 Lagerbestands-Warnungen','Reservierungen fast leer, Engpässe'],
+      ['production','🏭 Produktion','Lager voll, Überlauf'],
+      ['event','🌍 Events','Krisen, Booms, globale Events']
+    ];
+    toastCats.forEach(tc2=>{let id2=tc2[0],lbl2=tc2[1],desc=tc2[2];
+      h+=crd(chk(!G.toastOff[id2],'if(!G.toastOff)G.toastOff={};G.toastOff.'+id2+'=!this.checked;save()',lbl2,desc));
+    });
+
+  } else if(tab==='system'){
+    h+=secLabel('Konto');
+    h+=crd(rw('👤 Benutzer','<span class="mono-val">'+sanitize(currentUser)+'</span>'));
+    h+=crd('<div class="sec-title">🔑 Passwort ändern</div>'+
+           '<input type="password" id="setNewPw" class="sl" placeholder="Neues Passwort" style="width:100%;margin-bottom:6px;font-size:13px"/>'+
+           btnFull('const p=document.getElementById(\'setNewPw\').value;if(p.length<3){toast(\'Mindestens 3 Zeichen\',\'var(--r)\');return}changePassword(p).then(()=>{toast(\'✅ Passwort geändert\')}).catch(()=>{})',
+                   'Ändern'));
+
+    h+=secLabel('Benachrichtigungen','margin-top:10px');
+    if(typeof Notification!=='undefined'){
+      const perm=Notification.permission;
+      if(perm==='granted')
+        h+=crd(rw('🔔 Browser-Benachrichtigungen','<span style="color:var(--a)">✅ Aktiv</span>')+
+               sub('Benachrichtigung wenn Lager >90% voll (bei inaktivem Tab)'));
+      else if(perm==='denied')
+        h+=crd(rw('🔕 Benachrichtigungen','<span style="color:var(--r)">Blockiert</span>')+
+               sub('In Browser-Einstellungen erlauben'));
+      else
+        h+=crd(btnFull('Notification.requestPermission().then(p=>{openSettings()}).catch(()=>{})','🔔 Benachrichtigungen aktivieren'));
+    }
+
+    h+=secLabel('Off-Duty Timer','margin-top:10px');
+    h+=crd('<div class="sec-title">Automatisch Off-Duty nach Inaktivität</div>'+
+           '<div class="flex-gap4">'+
+           [1,2,3].map(d=>{
+             const on=s.offDutyDays===d;
+             return'<button class="btn sm'+(on?' on':'')+'" style="flex:1;'+
+                   (on?'background:var(--a);color:var(--bg);border-color:var(--a)':'')+
+                   '" onclick="setOffDutyDays('+d+')">'+d+(d===1?' Tag':' Tage')+'</button>';
+           }).join('')+
+           '</div>'+sub('Spart Wartungskosten bei längerer Abwesenheit (max. 3 Tage)','margin-top:4px'));
+
+    h+=secLabel('Cache','margin-top:10px');
+    h+=crd(btnFull('if(typeof clearRouteCache===\'function\')clearRouteCache();if(typeof clearSearchCache===\'function\')clearSearchCache();toast(\'🗑️ Cache geleert\')','🗑️ Route-Cache leeren')+
+           sub('Gespeicherte Routen und Suchergebnisse löschen','margin-top:4px'));
+
+    h+=secLabel('Info','margin-top:10px');
+    h+=crd('<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px">'+
+           '<span class="sub">📦 v7.0</span>'+
+           '<span class="sub">⏱️ '+ftime(getTick()||0)+' Spielzeit</span>'+
+           '<span class="sub">📦 '+(getDeliveries()||0)+' Lieferungen</span>'+
+           '</div>');
+
+    h+=secLabel('Gefahrenzone','margin-top:14px;color:var(--r)');
+    h+=crd(btnFull('if(confirm(\'Spielstand wirklich löschen? Das kann nicht rückgängig gemacht werden!\')){deleteSave();closePopup(\'settingsPopup\');location.reload()}','🗑️ Spielstand löschen','red'),
+           'border-color:rgba(248,113,113,.2)');
+    h+=crd(btnFull('closePopup(\'settingsPopup\');doLogout()','🚪 Abmelden','red'),'margin-top:8px');
+  }
+
+  h+=btnFull('closePopup(\'settingsPopup\')','Schließen','sec') ;
+  createPopup('settingsPopup',h,{maxWidth:'480px'});
 }
 // ══════════════════════════════════════════
 // INIT
