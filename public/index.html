@@ -338,7 +338,9 @@ body{font-family:'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif;backgroun
 
 /* ═══ FLEET EXPANDABLE ═══ */
 .fleet-details{max-height:0;overflow:hidden;transition:max-height .2s ease}
-.fleet-exp.open .fleet-details{max-height:100px}
+.fleet-exp.open .fleet-details{max-height:200px}
+.fleet-exp .fleet-chevron{transition:transform .2s}
+.fleet-exp.open .fleet-chevron{transform:rotate(180deg)}
 
 /* ═══ RESPONSIVE: Scale down for smaller screens ═══ */
 
@@ -501,8 +503,9 @@ body{font-family:'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif;backgroun
   .comp-explorer{width:100%!important;min-width:100%!important;max-height:none;height:auto;border-right:none;border-bottom:1px solid var(--bd);padding:4px 6px;overflow-x:auto;overflow-y:hidden;display:flex;flex-wrap:nowrap;gap:4px;-webkit-overflow-scrolling:touch}
   .comp-explorer::-webkit-scrollbar{display:none}
   .comp-explorer .sec-label,.comp-explorer .ex-cont,.comp-explorer .ex-continent{display:none}
-  /* Hide sort/filter buttons bar on mobile */
-  .comp-explorer>div[style*="border-bottom"]{display:none!important}
+  /* Hide continent headers but keep filters */
+  .comp-explorer>div[style*="border-bottom"]:not(.exp-filters){display:none!important}
+  .exp-filters{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto;gap:3px!important;padding:4px 6px!important;border:none!important;border-bottom:1px solid var(--bd)!important}
   .comp-explorer .ex-city{display:inline-flex;padding:6px 12px!important;border-radius:20px!important;font-size:12px!important;white-space:nowrap;border:1px solid var(--bd);background:rgba(255,255,255,.03);flex-shrink:0}
   .comp-explorer .ex-city.sel{background:rgba(61,214,140,.12);border-color:var(--a);color:var(--a)}
 
@@ -657,7 +660,7 @@ body{font-family:'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif;backgroun
   .comp-title{font-size:11px!important}
   .comp-bar-right{gap:2px}
   .comp-ico-btn{width:28px;height:28px;font-size:14px}
-  .comp-loc{font-size:10px!important;padding:2px 5px!important;max-width:100px;overflow:hidden;text-overflow:ellipsis}
+  .comp-loc{font-size:10px!important;padding:2px 5px!important;max-width:180px;overflow:hidden;text-overflow:ellipsis}
   #termSearch{width:80px!important;font-size:10px!important}
   .ctab{padding:7px 10px;font-size:10px}
 }
@@ -719,9 +722,10 @@ body{font-family:'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif;backgroun
   .top-btn.glow{display:none!important}
 
   /* Terminal tabs: icons only */
-  .ctab{padding:9px 14px}
-  .ctab i{font-size:16px}
+  .ctab{padding:9px 14px;position:relative}
+  .ctab i{font-size:18px}
   .ctab-text{display:none}
+  .ctab-badge{position:absolute;top:4px;right:2px;font-size:0;width:8px;height:8px;padding:0;margin:0;border-radius:50%;min-width:8px}
 
   /* Swipe indicator gradient on scrollable containers */
   .comp-tabs{position:relative}
@@ -761,7 +765,7 @@ body{font-family:'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif;backgroun
 @media(max-width:480px){
   #computer{top:44px;bottom:52px}
   .comp-bar{padding:3px 6px;gap:4px}
-  .comp-loc{max-width:80px;font-size:10px}
+  .comp-loc{max-width:160px;font-size:10px}
   #termSearch{width:80px!important;font-size:10px!important}
   .comp-ico-btn{width:28px;height:28px;font-size:14px}
 }
@@ -1031,7 +1035,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
       </div>
     </div>
     <div class="top-right">
-      <button class="top-btn duty-toggle" id="dutyBtn" onclick="toggleDuty()" title="On/Off Duty — Klick zum Umschalten">⏳</button>
+      <button class="top-btn duty-toggle" id="dutyBtn" onclick="toggleDuty()" title="🟢 On Duty = Spiel läuft (Produktion, Kosten, Aufträge)&#10;🔴 Off Duty = Spiel pausiert (keine Kosten, keine Produktion)">⏳</button>
       <button class="top-btn" id="viewToggleBtn" onclick="toggleView()">🗺️ Karte</button>
       <button class="top-btn glow" onclick="computerOpen?closeComputer():openComputer()">💻 Terminal</button>
       <div class="hamburger-wrap">
@@ -1092,7 +1096,10 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
       </div>
       <div class="comp-bar-right">
         <div style="position:relative"><label class="sr-only" for="termSearch">Terminal-Suche</label><input id="termSearch" class="auth-input" placeholder="🔍 Suche..." style="width:130px;padding:4px 8px;font-size:11px;border-radius:6px" oninput="termCitySearch(this.value)" onfocus="renderBlocked=true" onblur="setTimeout(()=>{renderBlocked=false;document.getElementById('termSearchRes')&&(document.getElementById('termSearchRes').style.display='none')},200)"/><div id="termSearchRes" style="display:none;position:absolute;top:100%;right:0;background:var(--bg);border:1px solid var(--bd2);border-radius:8px;max-height:200px;overflow-y:auto;min-width:250px;z-index:999;box-shadow:0 8px 30px rgba(0,0,0,.5)"></div></div>
+        <button class="comp-ico-btn mob-hide" onclick="showWiki()" title="Wiki & Hilfe"><i class="ri-question-line"></i></button>
+        <button class="comp-ico-btn mob-hide" onclick="showLeaderboard()" title="Leaderboard"><i class="ri-trophy-line"></i></button>
         <button class="comp-ico-btn" onclick="toggleMinimap()" id="mmToggle" title="Minimap ein/aus"><i class="ri-map-2-line"></i></button>
+        <button class="comp-ico-btn" onclick="openSettings()" title="Einstellungen"><i class="ri-settings-3-line"></i></button>
         <button class="comp-ico-btn accent" onclick="closeComputer()" title="Terminal schließen"><i class="ri-close-line"></i></button>
       </div>
     </div>
@@ -1131,7 +1138,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </div>
 
-<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build URFK4Q</div>
+<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build VDCK1N</div>
 <script>(function(){
   if(window.storage) return;
   const BASE='/api/storage';

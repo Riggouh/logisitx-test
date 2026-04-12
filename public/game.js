@@ -1,4 +1,4 @@
-// LogistiX — Build URFK4Q — 2026-04-11 20:01
+// LogistiX — Build VDCK1N — 2026-04-12 06:14
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -907,6 +907,18 @@ function divider(){return'<div style="height:1px;background:var(--bd);margin:4px
 // Full-width button
 function btnFull(onclick,label,extra){
   return'<button class="btn full'+(extra?' '+extra:'')+'" onclick="'+onclick+'">'+label+'</button>'
+}
+
+// ── Inline sub-tab bar for content area ──
+function _subTabBar(tabs, currentId, onclickFn) {
+  var h = '<div class="sub-tab-bar" style="display:flex;gap:2px;margin-bottom:12px;padding:3px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)">';
+  tabs.forEach(function(t) {
+    var id = t[0], label = t[1], badge = t[2] || '';
+    var on = currentId === id;
+    h += '<button style="flex:1;padding:7px 8px;font-size:11px;font-family:var(--mono);font-weight:' + (on ? '700' : '500') + ';color:' + (on ? 'var(--a)' : 'var(--td)') + ';background:' + (on ? 'rgba(61,214,140,.1)' : 'transparent') + ';border:none;border-radius:6px;cursor:pointer;transition:.15s;white-space:nowrap" onclick="' + onclickFn + '(\'' + id + '\')">' + label + badge + '</button>';
+  });
+  h += '</div>';
+  return h;
 }
 
 
@@ -4933,12 +4945,13 @@ function tickCore(){
           if(!b.localStor||b.overflow!=='city')continue; // Only overflow=city buildings
           for(const g in b.localStor){
             const a=b.localStor[g];
-            const space=Math.max(0,cc-cityUsed());
+            const space=cityFreeForGood(cid,g);
             if(a>0&&space>0){
               const mv=Math.min(a,space);
               stor[g]=(stor[g]||0)+mv;
               b.localStor[g]-=mv;
               if(b.localStor[g]<=0)delete b.localStor[g];
+              _invalidateResCache();
             }
           }
         }
@@ -5021,11 +5034,11 @@ function _tickProduction(){
             const rest=amt-toLocal;
             if(rest>0&&b.overflow==='city'){
               const cSpace=cityFreeForGood(cid,good);
-              if(cSpace>0)stor[good]=(stor[good]||0)+Math.min(rest,cSpace);
+              if(cSpace>0){stor[good]=(stor[good]||0)+Math.min(rest,cSpace);_invalidateResCache()}
             }
           } else if(b.overflow==='city'){
             const cSpace=cityFreeForGood(cid,good);
-            if(cSpace>0)stor[good]=(stor[good]||0)+Math.min(amt,cSpace);
+            if(cSpace>0){stor[good]=(stor[good]||0)+Math.min(amt,cSpace);_invalidateResCache()}
           }
         };
 
@@ -5160,7 +5173,9 @@ function _tickVehicles(){
       else if(vt.cat==='land')spdMult=landSpd;
       else if(vt.cat==='rail'&&railStop){continue} // Trains stopped
       else if(vt.cat==='air'&&airStop){continue} // Planes grounded
-      if(v.needsMaint)spdMult*=0.8; // 20% slower when needs maintenance
+      // Condition-based speed penalty: 100-60% = full speed, 60-30% = -0 to -20%, <30% = -20 to -40%
+      const cond=vehCondition(v);
+      if(cond<60){const condMult=cond>=30?(0.8+(cond-30)/150):(0.6+cond/150);spdMult*=condMult}
       let tn=tripT(f,t,vt.spd*spdMult);
       if(tn>MAX_TRIP_TICKS)tn=MAX_TRIP_TICKS; // Cap at 4 hours max
       v.tn=tn; // Store for UI consistency
@@ -7763,73 +7778,60 @@ function renComp(){
     // Remove old badges
     const ob=t.querySelector('.ctab-badge');if(ob)ob.remove();
   });
-  // Reservation badge on inventory tab
-  if(G&&G.storRes){
-    let totalResCities=0;Object.values(G.storRes).forEach(r=>{if(Object.values(r).some(v=>v>0))totalResCities++});
-    if(totalResCities){const invTab=document.querySelector('.ctab[data-ct="inventory"]');
-      if(invTab){const b=document.createElement('span');b.className='ctab-badge';b.style.cssText='font-size:9px;background:rgba(56,189,248,.2);color:var(--a2);padding:1px 4px;border-radius:6px;margin-left:3px';b.textContent='📋'+totalResCities;invTab.appendChild(b)}}
+
+  // ── TAB BADGES ──
+  if(G){
+    const _addBadge=(tabId,text,color)=>{const tab=document.querySelector('.ctab[data-ct="'+tabId+'"]');
+      if(tab&&compTab!==tabId){const b=document.createElement('span');b.className='ctab-badge';
+        b.style.cssText='font-size:9px;background:'+color+';padding:1px 5px;border-radius:8px;margin-left:3px;font-weight:700';
+        b.textContent=text;tab.appendChild(b)}};
+
+    // Missions: claimable rewards
+    const mClaimable=((G.quests?.dailies||[]).filter(q=>q.done&&!q.claimed).length)+
+      ((G.quests?.weeklies||[]).filter(q=>q.done&&!q.claimed).length)+
+      (typeof LEVEL_MISSIONS!=='undefined'?LEVEL_MISSIONS.filter(q=>q.minLvl<=playerLvl()&&G.quests?.levelMissions?.[q.id]==='done').length:0);
+    if(mClaimable)_addBadge('missions',mClaimable,'rgba(61,214,140,.25);color:var(--a)');
+
+    // Logistics: unassigned accepted orders
+    const unassOrd=G.orders.filter(o=>o.acc&&(o.amt-(o.delivered||0))>0&&!G.vehs.find(v=>v.cargo?.oid===o.id&&v.st==='moving')).length;
+    if(unassOrd)_addBadge('logistics',unassOrd,'rgba(251,191,36,.25);color:var(--go)');
+
+    // Fleet: vehicles in maintenance
+    const maintV=G.vehs.filter(v=>v.maintQueued||v.st==='maint').length;
+    if(maintV)_addBadge('fleet','🔧'+maintV,'rgba(56,189,248,.2);color:var(--a2)');
+
+    // Inventory: reservation badge
+    if(G.storRes){let totalResCities=0;Object.values(G.storRes).forEach(r=>{if(Object.values(r).some(v=>v>0))totalResCities++});
+      if(totalResCities)_addBadge('inventory','📋'+totalResCities,'rgba(56,189,248,.2);color:var(--a2)');}
+
+    // Buildings: bottleneck warning
+    const hasBottleneck=cities.some(c2=>{const mi=typeof _cityMissingInputs==='function'?_cityMissingInputs(c2.id,G.stor[c2.id]||{}):null;return mi&&Object.keys(mi).length>0});
+    if(hasBottleneck)_addBadge('buildings','⚠','rgba(248,113,113,.2);color:var(--r)');
   }
+
   // Pulse hint on next-action tab for new players
   if(G&&!G.tutDone&&(getDeliveries()||0)<5){
     const _ph=!G.vehs.length?'dealer':!Object.values(G.blds).flat().length?'buildings':G.orders.some(o=>o.acc&&(o.amt-(o.shipped||0))>0&&!G.vehs.find(v=>v.cargo?.oid===o.id&&v.st==='moving'))?'logistics':null;
     if(_ph){const pt=document.querySelector('.ctab[data-ct="'+_ph+'"]');if(pt&&compTab!==_ph)pt.classList.add('hint-pulse')}
   }
-  const locEl=document.getElementById('compLoc');if(locEl){const c=G.sel?C(G.sel):null;locEl.textContent=c?'📍 '+c.name:'📍 —'}
+
+  // ── LOCATION INDICATOR ──
+  const locEl=document.getElementById('compLoc');if(locEl){
+    if(G&&G.sel&&C(G.sel)){const sc2=C(G.sel);const cap2=cityCap(G.sel);const used2=sumObj(G.stor[G.sel]||{});const pct2=cap2?Math.round(used2/cap2*100):0;
+      const dCap2=depotCap(G.sel);const dUsed2=G.vehs.filter(v2=>(v2.depot||v2.loc)===G.sel).length;
+      locEl.innerHTML='📍 <b>'+sc2.name+'</b> <span style="font-size:10px;opacity:.6">📦'+pct2+'% 🚛'+dUsed2+'/'+dCap2+'</span>';
+    } else locEl.textContent='📍 Alle Standorte';
+  }
 
   // Explorer: group by continent
   const exp=document.getElementById('compExplorer');if(!exp)return;
   // Mobile toggle button
   const expOpen=window._expOpen||false;
   let eh='<button class="exp-toggle" onclick="window._expOpen=!window._expOpen;document.getElementById(\'compExplorer\').classList.toggle(\'exp-open\',window._expOpen);this.textContent=window._expOpen?\'▲ Standorte\':\'▼ Standorte\'">'+(expOpen?'▲':'▼')+' Standorte</button>';
-  eh+='<div style="font-size:12px;color:var(--td);padding:4px 6px;font-family:var(--mono)">📍 '+cities.length+' Standorte</div>';
-  // Missions tab: sub-tabs
-  if(compTab==='missions'){
-    if(!G.missionSub)G.missionSub='daily';
-    const tutDone=TUTORIAL.filter(q=>G.quests?.tutorial?.[q.id]==='claimed').length;
-    const tutTotal=TUTORIAL.length;const tutAll=tutDone>=tutTotal;
-    const lmAvail=LEVEL_MISSIONS.filter(q=>q.minLvl<=playerLvl()).length;
-    const lmDone=LEVEL_MISSIONS.filter(q=>q.minLvl<=playerLvl()&&G.quests?.levelMissions?.[q.id]==='claimed').length;
-    const dDone=(G.quests?.dailies||[]).filter(q=>q.claimed).length;
-    const dTotal=(G.quests?.dailies||[]).length;
-    const wDone=(G.quests?.weeklies||[]).filter(q=>q.claimed).length;
-    const wTotal=(G.quests?.weeklies||[]).length;
-    // Claimable badges
-    const dReady=(G.quests?.dailies||[]).some(q=>q.done&&!q.claimed);
-    const wReady=(G.quests?.weeklies||[]).some(q=>q.done&&!q.claimed);
-    const lmReady=LEVEL_MISSIONS.some(q=>q.minLvl<=playerLvl()&&G.quests?.levelMissions?.[q.id]==='done');
-    const tutReady=TUTORIAL.some(q=>{const s=G.quests?.tutorial?.[q.id];return s==='done'});
-    // Summary bar
-    eh+='<div style="padding:4px 8px;font-size:10px;color:var(--td);font-family:var(--mono);display:flex;gap:6px;flex-wrap:wrap">';
-    eh+='<span>📅 '+dDone+'/'+dTotal+'</span><span>📆 '+wDone+'/'+wTotal+'</span>';
-    if(!tutAll)eh+='<span>📖 '+tutDone+'/'+tutTotal+'</span>';
-    eh+='<span>🛡️ '+lmDone+'/'+lmAvail+'</span></div>';
-    eh+='<div class="ex-city'+(G.missionSub==='daily'?' sel':'')+'" onclick="setMissionSub(\'daily\')" style="font-weight:600;color:'+(G.missionSub==='daily'?'var(--a)':'var(--td)')+'"><i class="ri-calendar-line"></i> Heute'+(dReady?' <span style="background:var(--a);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':'')+'</div>';
-    eh+='<div class="ex-city'+(G.missionSub==='weekly'?' sel':'')+'" onclick="setMissionSub(\'weekly\')" style="font-weight:600;color:'+(G.missionSub==='weekly'?'var(--a2)':'var(--td)')+'"><i class="ri-calendar-check-line"></i> Woche'+(wReady?' <span style="background:var(--a2);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':'')+'</div>';
-    eh+='<div class="ex-city'+(G.missionSub==='level'?' sel':'')+'" onclick="setMissionSub(\'level\')" style="font-weight:600;color:'+(G.missionSub==='level'?'var(--go)':'var(--td)')+'"><i class="ri-shield-star-line"></i> Level'+(lmReady||tutReady?' <span style="background:var(--go);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':'')+'</div>';
-    eh+='<div class="ex-city'+(G.missionSub==='achievements'?' sel':'')+'" onclick="setMissionSub(\'achievements\')" style="font-weight:600;color:'+(G.missionSub==='achievements'?'#fbbf24':'var(--td)')+'"><i class="ri-medal-line"></i> Erfolge</div>';
-    eh+=divider();
-  }
-  // Dealer tab: sub-tabs in explorer
-  // Dealer: no sub-tabs needed (buy only)
-  // Fleet: single view with filters (no sub-tabs)
-  // Logistics tab: combined sub-tabs
-  if(compTab==='logistics'){
-    if(!G.logSub||!['orders','automation','stats','finance'].includes(G.logSub))G.logSub='orders';
-    const soCount=(G.standingOrders||[]).length;const hist=G.history||[];
-    eh+='<div class="ex-city'+(G.logSub==='orders'?' sel':'')+'" onclick="setLogSub(\'orders\')" style="font-weight:600;color:'+(G.logSub==='orders'?'var(--a)':'var(--td)')+'"><i class="ri-file-list-3-line"></i> Aufträge</div>';
-    eh+='<div class="ex-city'+(G.logSub==='automation'?' sel':'')+'" onclick="setLogSub(\'automation\')" style="font-weight:600;color:'+(G.logSub==='automation'?'var(--bl)':'var(--td)')+'"><i class="ri-route-line"></i> Routen & Versand'+(soCount?' ('+soCount+')':'')+'</div>';
-    eh+='<div class="ex-city'+(G.logSub==='stats'?' sel':'')+'" onclick="setLogSub(\'stats\')" style="font-weight:600;color:'+(G.logSub==='stats'?'var(--bl)':'var(--td)')+'"><i class="ri-bar-chart-line"></i> Statistik ('+hist.length+')</div>';
-    eh+='<div class="ex-city'+(G.logSub==='finance'?' sel':'')+'" onclick="setLogSub(\'finance\')" style="font-weight:600;color:'+(G.logSub==='finance'?'var(--go)':'var(--td)')+'"><i class="ri-money-euro-circle-line"></i> Finanzen</div>';
-    eh+=divider();
-  }
-  // Market tab: sub-tabs in explorer
-  if(compTab==='market'){
-    if(!G.marketSub||!['prices','supply','handel'].includes(G.marketSub))G.marketSub='prices';
-    eh+='<div class="ex-city'+(G.marketSub==='prices'?' sel':'')+'" onclick="setMarketSub(\'prices\')" style="font-weight:600;color:'+(G.marketSub==='prices'?'var(--a)':'var(--td)')+'"><i class="ri-line-chart-line"></i> Preise</div>';
-    eh+='<div class="ex-city'+(G.marketSub==='supply'?' sel':'')+'" onclick="setMarketSub(\'supply\')" style="font-weight:600;color:'+(G.marketSub==='supply'?'#a855f7':'var(--td)')+'"><i class="ri-scales-3-line"></i> Marktdynamik</div>';
-    eh+='<div class="ex-city'+(G.marketSub==='handel'?' sel':'')+'" onclick="setMarketSub(\'handel\')" style="font-weight:600;color:'+(G.marketSub==='handel'?'#fb923c':'var(--td)')+'"><i class="ri-store-2-line"></i> Handel'+(G.pmPickups&&G.pmPickups.length?' <span style=\"font-size:9px;background:rgba(251,146,56,.2);color:#fb923c;padding:1px 4px;border-radius:6px\">'+G.pmPickups.length+'</span>':'')+'</div>';
-    eh+=divider();
-  }
+  eh+='<div style="font-size:12px;color:var(--td);padding:4px 6px;font-family:var(--mono);display:flex;justify-content:space-between;align-items:center">📍 '+cities.length+' Standorte';
+  if(G.sel)eh+='<button class="btn sm" style="font-size:9px;padding:2px 6px" onclick="G.sel=null;G._orderFilter=null;G._invFilter=null;renComp()">Alle</button>';
+  eh+='</div>';
+  // Sub-tabs are now inline in the content area (not sidebar)
   // Explorer sort & category controls
   if(!G._expSort)G._expSort='alpha';
   if(!G._expMode)G._expMode='region';
@@ -7842,7 +7844,7 @@ function renComp(){
     if(!activeCats.length||activeCats.length===4)return true;
     return activeCats.some(cat=>bs.some(b=>catDefs[cat]?.match(b)));
   }
-  eh+='<div style="display:flex;gap:2px;padding:2px 6px;border-bottom:1px solid var(--bd);font-size:9px;flex-wrap:wrap">';
+  eh+='<div class="exp-filters" style="display:flex;gap:2px;padding:2px 6px;border-bottom:1px solid var(--bd);font-size:9px;flex-wrap:wrap">';
   eh+='<button class="tg'+(G._expSort==='alpha'?' g':'')+'" class="tag-xs2" onclick="setExpSort(\'alpha\')">A-Z</button>';
   eh+='<button class="tg'+(G._expSort==='date'?' g':'')+'" class="tag-xs2" onclick="setExpSort(\'date\')">Neu</button>';
   Object.entries(catDefs).forEach(([k,cd])=>{const on=G._expCats[k];
@@ -7857,6 +7859,9 @@ function renComp(){
   else sortedCities.sort((a,b)=>a.name.localeCompare(b.name));
   // Filter by active categories
   sortedCities=sortedCities.filter(c=>cityMatchesCats(c.id));
+
+  // "All locations" deselect chip
+  eh+='<div class="ex-city'+(!G.sel?' sel':'')+'" onclick="G.sel=null;G._orderFilter=null;G._invFilter=null;routesShowAll=true;renComp()" style="font-weight:600">🌍 Alle</div>';
 
   if(G._expMode==='custom'&&G.cityGroups.length){
     // Custom groups
@@ -7916,7 +7921,7 @@ function renComp(){
     tabs[compTab](el);
     // Prepend events banner + auto-manager
     let pre='';
-    if(evts.length){pre+='<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">';
+    if(evts.length){pre+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding:8px 10px;background:rgba(251,191,36,.03);border:1px solid rgba(251,191,36,.12);border-radius:8px">';
       evts.forEach(e=>{const def=EVENTS.find(x=>x.id===e.id);if(!def)return;const rem=e.endTick-getTick();
         // Build effect tooltip
         const effs=[];
@@ -7931,9 +7936,9 @@ function renComp(){
         if(def.effect.regionBonus)Object.entries(def.effect.regionBonus).forEach(([r,m])=>effs.push(r+' ×'+m));
         if(def.effect.goodBonus)Object.entries(def.effect.goodBonus).forEach(([g,m])=>effs.push((GOODS[g]?.name||g)+' ×'+m));
         const tip=def.desc+'\n'+effs.join(' · ');
-        pre+='<div style="padding:4px 10px;border-radius:8px;font-size:11px;font-family:var(--mono);border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.06);color:var(--go);cursor:help" title="'+tip+'">'+def.icon+' '+def.name+' <span style="opacity:.6">'+ftime(rem)+'</span></div>'});
+        pre+='<div style="padding:5px 12px;border-radius:8px;font-size:12px;font-family:var(--mono);font-weight:600;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);color:var(--go);cursor:help" title="'+tip+'">'+def.icon+' '+def.name+' <span style="opacity:.6">'+ftime(rem)+'</span></div>'});
       pre+='</div>';}
-    if(['logistics','inventory'].includes(compTab)){
+    if(['logistics','inventory','fleet'].includes(compTab)){
       const canAuto=playerLvl()>=5;
       if(canAuto){
         const unlocked=G.amUnlocked;
@@ -8363,6 +8368,10 @@ function compDealer(el){
     const catLocked=Object.entries(VT).filter(([,d])=>d.cat===cat&&d.lvl>lvl);
     if(!catUnlocked.length&&!catLocked.length)return;
     h+='<div class="sec-label">'+label+'</div>';
+    // Explanation for non-land vehicles
+    if(cat==='rail')h+='<div class="sub" style="padding:2px 0 6px;font-size:10px;color:var(--a2)">🔗 Nur zwischen eigenen Städten mit Bahnhof · Ideal für Massengut-Transfer</div>';
+    if(cat==='sea')h+='<div class="sub" style="padding:2px 0 6px;font-size:10px;color:var(--a2)">🔗 Nur zwischen eigenen Städten mit Hafen · Für internationale Großlieferungen</div>';
+    if(cat==='air')h+='<div class="sub" style="padding:2px 0 6px;font-size:10px;color:var(--a2)">🔗 Nur zwischen eigenen Städten mit Flughafen · Schnell, kleine Kapazität</div>';
 
     catUnlocked.forEach(([k,d])=>{
       const canBuy=canBuyVehAt(k,c.id);const dis=!canBuy||G.money<d.price||depotFull;
@@ -8413,7 +8422,7 @@ function renderMaintVeh(v){
   const mk=vehMaintKm(v);const kmSince=(v.km||0)-(v.lastMaintKm||0);
   let h='<div class="crd" style="padding:6px 8px;'+(cond<30?'border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.03)':'')+'">';
   h+='<div class="rw"><span>'+vt.em+' <b>'+vehName(v)+'</b> <span class="sub">'+vt.name+'</span>'+(vt.spec?' <span class="tg" style="font-size:9px;padding:1px 4px;color:var(--go);border-color:rgba(251,191,36,.2)">'+SPEC_LABELS[vt.spec]+'</span>':'')+(isSOBound(v)?' <span class="tg" style="font-size:9px;color:var(--go);border-color:rgba(251,191,36,.3)">🔄 DA</span>':'')+(v.maintQueued?' <span class="tg" style="font-size:9px;color:var(--r);border-color:rgba(248,113,113,.3)">🔧 Wartung</span>':'')+'</span>';
-  h+='<span style="font-family:var(--mono);color:'+condClr+';font-weight:700" title="Zustand: '+cond+'% · Wartung alle '+mk.toLocaleString('de-DE')+' km">🔧 '+cond+'%</span></div>';
+  h+='<span style="font-family:var(--mono);color:'+condClr+';font-weight:700" title="Zustand: '+cond+'%'+(cond<60?' · ⚠️ Speed -'+Math.round((1-(cond<30?0.6+cond/150:0.8+(cond-30)/150))*100)+'%':'')+' · Wartung alle '+mk.toLocaleString('de-DE')+' km">🔧 '+cond+'%'+(cond<60?' <span style=\"font-size:9px\">🐢</span>':'')+'</span></div>';
   h+='<div class="pb" style="margin:2px 0;height:4px"><div class="pf" style="width:'+cond+'%;background:'+condClr+'"></div></div>';
   h+='<div class="sub">'+(v.km||0).toLocaleString('de-DE')+' km · '+kmSince.toLocaleString('de-DE')+'/'+mk.toLocaleString('de-DE')+' km bis Wartung · '+(v.st==='idle'?'📍 '+(loc?.name||'?'):'🔶 unterwegs')+'</div>';
   h+='<div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">';
@@ -8498,9 +8507,10 @@ function compFleet(el){
   // ═══ VEHICLE GROUPS ═══
   if(!G.vehGroups)G.vehGroups=[];
   if(G.vehGroups.length||G.vehs.length>=6){
-    h+='<div style="cursor:pointer;display:flex;align-items:center;gap:4px;padding:3px 0;margin-bottom:4px" onclick="window._showVehGroups=!window._showVehGroups;renComp()">';
-    h+='<span class="text-muted">'+(window._showVehGroups?'▼':'▶')+'</span>';
-    h+='<span style="font-size:11px;font-weight:600">📁 Gruppen · '+G.vehGroups.length+'</span></div>';
+    if(window._showVehGroups===undefined&&G.vehGroups.length)window._showVehGroups=true;
+    h+='<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;margin-bottom:6px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="window._showVehGroups=!window._showVehGroups;renComp()">';
+    h+='<span style="color:var(--a2)">'+(window._showVehGroups?'▼':'▶')+'</span>';
+    h+='<span style="font-size:12px;font-weight:600;color:var(--a2)">📁 Fahrzeuggruppen · '+G.vehGroups.length+'</span></div>';
     if(window._showVehGroups){
       G.vehGroups.forEach((gr,gi)=>{
         const vCount=gr.vids.filter(id=>findVehicle(id)).length;
@@ -8590,7 +8600,7 @@ function compFleet(el){
         if(v.maintQueued)h+=' <span class="tg" style="font-size:9px;color:var(--r);border-color:rgba(248,113,113,.3)">🔧</span>';
         h+=' → '+t.name;
         if(tripLabel)h+=' <span class="tg" style="font-size:10px;'+(isAlly?'color:#a855f7':'color:var(--go)')+'">'+tripLabel+'</span>';
-        h+='</span><span class="eta" data-veta="'+v.id+'">'+Math.floor(pct*100)+'% · '+ftime(Math.max(0,tn-v.prog))+'</span></div>';
+        h+='</span><span class="eta" data-veta="'+v.id+'">'+Math.floor(pct*100)+'% · '+ftime(Math.max(0,tn-v.prog))+'</span><span class="fleet-chevron" style="margin-left:6px;font-size:10px;color:var(--td);transition:transform .2s">▼</span></div>';
         h+='<div class="pb" style="margin:2px 0"><div class="pf" data-vprog="'+v.id+'" style="width:'+pct*100+'%;background:'+(isAlly?'#a855f7':isMarket?'var(--go)':'var(--a)')+'"></div></div>';
         // Expandable details
         h+='<div class="fleet-details">';
@@ -8805,23 +8815,37 @@ function compLogistics(el) {
   if (!G.logSub || !['orders','automation','stats','finance'].includes(G.logSub))
     G.logSub = 'orders';
 
+  // Inline sub-tab bar
+  const soCount = (G.standingOrders||[]).length;
+  const hist = G.history||[];
+  const unass = G.orders.filter(o=>o.acc&&(o.amt-(o.delivered||0))>0&&!G.vehs.find(v=>v.cargo?.oid===o.id&&v.st==='moving')).length;
+  let tabH = '<div style="display:flex;gap:2px;margin-bottom:12px;padding:3px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)">';
+  [['orders','📋 Aufträge'+(unass?' <span style="background:rgba(251,191,36,.25);color:var(--go);border-radius:8px;padding:0 5px;font-size:9px">'+unass+'</span>':''),'var(--a)'],
+   ['automation','🗺️ Routen'+(soCount?' ('+soCount+')':''),'var(--a2)'],
+   ['stats','📊 Statistik','var(--a2)'],
+   ['finance','💰 Finanzen','var(--go)']].forEach(function(t){
+    var on=G.logSub===t[0];
+    tabH+='<button style="flex:1;padding:7px 6px;font-size:11px;font-family:var(--mono);font-weight:'+(on?'700':'500')+';color:'+(on?t[2]:'var(--td)')+';background:'+(on?t[2]+'18':'transparent')+';border:none;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="setLogSub(\''+t[0]+'\')">'+t[1]+'</button>';
+  });
+  tabH += '</div>';
+
   if (G.logSub === 'automation') {
-    el.innerHTML = '<div id="_autoRoutes"></div>';
+    el.innerHTML = tabH+'<div id="_autoRoutes"></div>';
     compAutomation(el.querySelector('#_autoRoutes'), false);
     return;
   }
   if (G.logSub === 'finance') {
-    el.innerHTML = '<div id="_finBody"></div>';
+    el.innerHTML = tabH+'<div id="_finBody"></div>';
     compFinance(el.querySelector('#_finBody'), false);
     return;
   }
   if (G.logSub === 'stats') {
-    el.innerHTML = '<div id="_statsBody"></div>';
+    el.innerHTML = tabH+'<div id="_statsBody"></div>';
     compStatsHistory(el.querySelector('#_statsBody'), false);
     return;
   }
   G.orderSub = 'overview';
-  el.innerHTML = '<div id="_ordBody"></div>';
+  el.innerHTML = tabH+'<div id="_ordBody"></div>';
   compOrders(el.querySelector('#_ordBody'), false);
 }
 
@@ -8889,6 +8913,19 @@ function _orderCard(o, accepted) {
     h += '<span style="font-family:var(--mono);font-size:12px;color:' + (pct > 0 ? 'var(--a)' : 'var(--td)') + '">' + delivered + '/' + o.amt + ' (' + pct + '%)</span>';
   }
   h += '</div></div>';
+
+  // Spec transport requirement warning
+  if (gd && gd.transport && o.srcDist) {
+    var specThreshold = SPEC_DIST[gd.transport] || 0;
+    var specLabels = {cool: '🧊 Kühltransport', tank: '🛢️ Tankwagen', hazard: '⚠️ Gefahrgut'};
+    if (o.srcDist >= specThreshold) {
+      var hasSpec = G.vehs.some(function(v2) { var vt2 = VT[v2.type]; return vt2 && (vt2.spec === gd.transport || vt2.cat === 'rail' || vt2.cat === 'sea' || vt2.cat === 'air'); });
+      h += '<div style="padding:3px 12px;font-size:10px;font-family:var(--mono);background:' + (hasSpec ? 'rgba(251,191,36,.06)' : 'rgba(248,113,113,.08)') + ';color:' + (hasSpec ? 'var(--go)' : 'var(--r)') + ';border-top:1px solid rgba(255,255,255,.04)">';
+      h += (specLabels[gd.transport] || gd.transport) + ' ab ' + specThreshold + ' km';
+      if (!hasSpec) h += ' — <b>kein passendes Fahrzeug!</b>';
+      h += '</div>';
+    }
+  }
 
   if (!accepted) {
     // ═══ OPEN ORDER ═══
@@ -9088,6 +9125,14 @@ function compAutomation(el, append) {
     <span style="font-weight:600;font-size:13px;color:var(--go)">🔄 Daueraufträge</span>
     <span class="sub" style="margin-left:auto;font-size:11px">${soCount} aktiv${soTotal>soCount?' · '+(soTotal-soCount)+' pausiert':''}${soWarn?' <span style="background:var(--r);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':''}</span></div>`;
   if (on2) h += '<div id="_autoStanding"></div>';
+
+  // Quick link to chain planner
+  if (cities.length && G.sel) {
+    h += '<div style="margin-top:6px;padding:8px 10px;background:rgba(168,85,247,.04);border:1px solid rgba(168,85,247,.12);border-radius:6px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="setCompTab(\'buildings\');setTimeout(function(){_showChainWizard(G.sel||cities[0].id)},100)">';
+    h += '<span style="font-size:16px">🔗</span>';
+    h += '<div><div style="font-weight:600;font-size:12px;color:#a855f7">Lieferketten-Planer</div>';
+    h += '<div class="sub" style="font-size:10px">Zeigt Verarbeitungsketten und Erweiterungen für ' + (C(G.sel)?.name || 'deinen Standort') + '</div></div></div>';
+  }
 
   const div = document.createElement('div');
   render(unsafeHTML(h), div);
@@ -9484,7 +9529,7 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
         }
         let prodBadge='';if(_pr[g]){const pm=Math.round(_pr[g]*60*10)/10;prodBadge=' <span class="sub" style="color:var(--a);font-size:9px">(+'+pm+'/min)</span>'}
         h+='<span style="flex:1;min-width:0">'+(GOODS[g]?.em||'')+' '+(GOODS[g]?.name||'')+' <b>'+amt+'</b>'+resBadge+prodBadge+' <span class="sub">'+price.toLocaleString('de-DE')+'€/St.</span></span>';
-        if(vHere.length)h+='<button class="btn sm" style="background:rgba(251,191,36,.1);color:var(--go);border-color:rgba(251,191,36,.25)" onclick="showMarketSellPopup(\''+c.id+'\',\''+g+'\')">💰</button>';
+        if(vHere.length)h+='<button class="btn sm" style="background:rgba(251,191,36,.1);color:var(--go);border-color:rgba(251,191,36,.25)" onclick="showMarketSellPopup(\''+c.id+'\',\''+g+'\')">💰 Verkauf</button>';
         if(cities.length>1)h+='<button class="btn sm" onclick="showSendGoodsPopup(\''+c.id+'\',\''+g+'\','+amt+')" title="An anderen Standort versenden">📦 Senden</button>';
         h+='<button class="btn sm" style="color:var(--r);border-color:rgba(248,113,113,.25);opacity:.4" onclick="adminDiscardGoods(\''+c.id+'\',\''+g+'\','+amt+')" title="Waren entsorgen">🗑️</button>';
         h+='</div>'});
@@ -9496,6 +9541,14 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
 function compMarket(el){
   if(!G.marketSub||!['prices','supply','handel'].includes(G.marketSub))G.marketSub='prices';
   let h=tabHead('market','<i class="ri-line-chart-line"></i> Markt','Preise · Marktdynamik · Handel');
+  // Inline sub-tab bar
+  const pickups=G.pmPickups&&G.pmPickups.length?G.pmPickups.length:0;
+  h+='<div style="display:flex;gap:2px;margin-bottom:12px;padding:3px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)">';
+  [['prices','📈 Preise','var(--a)'],['supply','⚖️ Marktdynamik','#a855f7'],['handel','🏪 Handel'+(pickups?' <span style="font-size:9px;background:rgba(251,146,56,.2);color:#fb923c;padding:1px 4px;border-radius:6px">'+pickups+'</span>':''),'#fb923c']].forEach(function(t){
+    var on=G.marketSub===t[0];
+    h+='<button style="flex:1;padding:7px 6px;font-size:11px;font-family:var(--mono);font-weight:'+(on?'700':'500')+';color:'+(on?t[2]:'var(--td)')+';background:'+(on?t[2]+'18':'transparent')+';border:none;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="setMarketSub(\''+t[0]+'\')">'+t[1]+'</button>';
+  });
+  h+='</div>';
   const myRegs=new Set();cities.forEach(c=>myRegs.add(getRegion((c.co||'').toUpperCase())));
   const regs=[...myRegs];
 
@@ -9556,7 +9609,7 @@ function compMarket(el){
         const clr=diff>0?'var(--a)':diff<0?'var(--r)':'var(--td)';
         h+='<td style="padding:4px 6px;text-align:center;font-family:var(--mono);color:'+clr+'">'+fmt(p)+'</td>'});
       h+='<td style="padding:4px 6px;text-align:center;font-family:var(--mono);color:'+(stock>0?'var(--a)':'var(--td)')+'">'+stock+'</td>';
-      h+='<td style="padding:2px 4px;text-align:center">'+(sellCity?'<button class="btn sm" style="font-size:10px;background:rgba(251,191,36,.1);color:var(--go);border-color:rgba(251,191,36,.25)" onclick="event.stopPropagation();showMarketSellPopup(\''+sellCity.id+'\',\''+g+'\')">💰</button>':'')+'</td>';
+      h+='<td style="padding:2px 4px;text-align:center">'+(sellCity?'<button class="btn sm" style="font-size:10px;background:rgba(251,191,36,.1);color:var(--go);border-color:rgba(251,191,36,.25)" onclick="event.stopPropagation();showMarketSellPopup(\''+sellCity.id+'\',\''+g+'\')">💰 Verkauf</button>':'')+'</td>';
       h+='</tr>';
       // Inline detail
       if(isOpen){
