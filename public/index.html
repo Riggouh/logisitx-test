@@ -988,6 +988,11 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   .money-fly,.confetti,.track-ring,.hint-pulse,.lvlup-ready,.lvlup-badge{animation:none!important}
 }
+
+/* ═══ VERSION TAG ═══ */
+.version-tag{position:fixed;bottom:6px;left:6px;z-index:5499;font-family:var(--mono);font-size:9px;color:var(--td);opacity:.3;pointer-events:none;letter-spacing:.5px}
+@media(max-width:768px){.version-tag{bottom:62px}}
+@media(max-width:480px){.version-tag{bottom:56px}}
 </style>
 </head>
 <body>
@@ -1126,6 +1131,9 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
 
   <!-- Mobile Bottom Nav (hidden on desktop) -->
   <div class="mob-nav" id="mobNav">
+
+  <!-- Version tag -->
+  <div class="version-tag">v2.1</div>
     <button class="mob-nav-btn" onclick="if(viewMode!=='dashboard'){toggleView()}else{renDash()}" id="mnDash"><i class="ri-dashboard-line"></i><span>Dashboard</span></button>
     <button class="mob-nav-btn" onclick="if(viewMode!=='map')toggleView()" id="mnMap"><i class="ri-map-2-line"></i><span>Karte</span></button>
     <button class="mob-nav-btn mob-nav-main" onclick="computerOpen?closeComputer():openComputer()" id="mnTerm"><i class="ri-terminal-box-line"></i><span>Terminal</span></button>
