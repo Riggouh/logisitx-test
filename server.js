@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════
-// LogistiX Server — Phase 2: Storage Isolation
+// LogistiX Server — Phase 3: Security Hardening (v2.2)
 // ══════════════════════════════════════════
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
 
@@ -10,6 +10,8 @@ const CORS_ORIGIN=process.env.CORS_ORIGIN||'*';
 const RATE_MAX=parseInt(process.env.RATE_MAX)||200;
 const RATE_WINDOW=60000;
 const SESSION_TTL=24*3600*1000; // 24h
+const ADMIN_USER=process.env.ADMIN_USER||'riggouh';
+const ADMIN_DEFAULT_PW=process.env.ADMIN_DEFAULT_PW||null; // null = generate random on first start
 
 // ── Data files (isolated) ──
 const FILES={
@@ -80,21 +82,31 @@ Object.values(FILES).forEach(ensureFile);
   // Ensure default admin user
   const adminData=readJSON(FILES.admin);
   if(!adminData.lx_admin_users)adminData.lx_admin_users=[];
-  if(!adminData.lx_admin_users.includes('riggouh')){
-    adminData.lx_admin_users.push('riggouh');
+  if(!adminData.lx_admin_users.includes(ADMIN_USER)){
+    adminData.lx_admin_users.push(ADMIN_USER);
     writeJSON(FILES.admin,adminData);
   }
 })();
 
-// ── Crypto (same algo as client: SHA-256 + salt) ──
+// ── Crypto (scrypt for new hashes, SHA-256 verify for backward compat) ──
+const SCRYPT_KEYLEN=64;const SCRYPT_COST=16384;const SCRYPT_BLOCK=8;const SCRYPT_PARALLEL=1;
 function hashPw(pass,salt){
   if(!salt)salt=crypto.randomBytes(16).toString('hex');
+  const key=crypto.scryptSync(pass,salt,SCRYPT_KEYLEN,{N:SCRYPT_COST,r:SCRYPT_BLOCK,p:SCRYPT_PARALLEL});
+  return{hash:key.toString('hex'),salt,algo:'scrypt'};
+}
+function _hashPwSha256(pass,salt){
   const hash=crypto.createHash('sha256').update(salt+':'+pass).digest('hex');
   return{hash,salt};
 }
-function verifyPw(pass,storedHash,salt){
-  const{hash}=hashPw(pass,salt);
-  // Constant-time comparison
+function verifyPw(pass,storedHash,salt,algo){
+  if(algo==='scrypt'){
+    try{const key=crypto.scryptSync(pass,salt,SCRYPT_KEYLEN,{N:SCRYPT_COST,r:SCRYPT_BLOCK,p:SCRYPT_PARALLEL});
+      return crypto.timingSafeEqual(key,Buffer.from(storedHash,'hex'))}
+    catch(e){return false}
+  }
+  // Legacy SHA-256 fallback
+  const{hash}=_hashPwSha256(pass,salt);
   try{return crypto.timingSafeEqual(Buffer.from(hash,'hex'),Buffer.from(storedHash,'hex'))}
   catch(e){return hash===storedHash}
 }
@@ -117,7 +129,7 @@ function getSession(req){
 setInterval(()=>{const now=Date.now();for(const t in sessions){if(now-sessions[t].ts>SESSION_TTL)delete sessions[t]}},600000);
 
 // ── Users helper (reads from isolated file) ──
-function getUsers(){const d=readJSON(FILES.users);return d.lx_users?JSON.parse(d.lx_users):{}}
+function getUsers(){const d=readJSON(FILES.users);try{return d.lx_users?JSON.parse(d.lx_users):{}}catch(e){console.error('Corrupt users data:',e);return{}}}
 function saveUsersObj(users){
   const d=readJSON(FILES.users);
   d.lx_users=JSON.stringify(users);
@@ -182,15 +194,22 @@ function checkWriteAccess(key,sessionUser){
   if(ADMIN_ONLY_WRITE.some(p=>key.startsWith(p))){
     if(!adminSessions[sessionUser])return 'admin only';
   }
-  // Per-user keys: lx_save_<user> — only own save
+  // Per-user keys: lx_save_<user> — only own save, MUST be authenticated
   if(key.startsWith('lx_save_')){
+    if(!sessionUser)return 'auth required';
     const saveUser=key.replace('lx_save_','');
-    if(sessionUser&&saveUser!==sessionUser&&!adminSessions[sessionUser])return 'not your save';
+    if(saveUser!==sessionUser&&!adminSessions[sessionUser])return 'not your save';
   }
-  // Per-user keys: lb:<user> — only own leaderboard
+  // Per-user keys: lb:<user> — only own leaderboard, MUST be authenticated
   if(key.startsWith('lb:')){
+    if(!sessionUser)return 'auth required';
     const lbUser=key.replace('lb:','');
-    if(sessionUser&&lbUser!==sessionUser&&!adminSessions[sessionUser])return 'not your entry';
+    if(lbUser!==sessionUser&&!adminSessions[sessionUser])return 'not your entry';
+  }
+  // Shared gameplay keys: require any valid session (H1)
+  const SHARED_SESSION_KEYS=['pm:','pm_credit:','alliances','terr_owners','terr_market','ally_market'];
+  if(SHARED_SESSION_KEYS.some(p=>key===p||key.startsWith(p))){
+    if(!sessionUser)return 'auth required';
   }
   return null; // allowed
 }
@@ -202,8 +221,11 @@ const adminSessions={};
 const _pw={};
 function safeWrite(f,store){
   _pw[f]=store;
-  if(!_pw[f+'_t']){_pw[f+'_t']=setTimeout(()=>{try{writeJSON(f,_pw[f])}catch(e){}delete _pw[f+'_t']},50)}
-  try{writeJSON(f,store)}catch(e){}
+  if(!_pw[f+'_t']){
+    _pw[f+'_t']=setTimeout(()=>{try{writeJSON(f,_pw[f])}catch(e){console.warn('safeWrite:',e)}delete _pw[f+'_t']},50);
+    // First call: write immediately, subsequent within 50ms are debounced
+    try{writeJSON(f,store)}catch(e){console.warn('safeWrite:',e)}
+  }
 }
 
 // ── Security Headers ──
@@ -217,13 +239,21 @@ function setHeaders(req,res){
   res.setHeader('X-Frame-Options','SAMEORIGIN');
   res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
 }
-const CSP="default-src 'self'; manifest-src 'self' data:; worker-src 'self' blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de *.opentopomap.org *.arcgisonline.com *.basemaps.cartocdn.com; connect-src 'self' router.project-osrm.org nominatim.openstreetmap.org";
+const CSP="default-src 'self'; manifest-src 'self' data:; worker-src 'self' blob:; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de *.opentopomap.org *.arcgisonline.com *.basemaps.cartocdn.com; connect-src 'self' router.project-osrm.org nominatim.openstreetmap.org";
 
 // ── Body parser helper ──
 function readBody(req,maxSize,cb){
-  let body='';let size=0;
-  req.on('data',c=>{size+=c.length;if(size>maxSize){req.destroy();return}body+=c});
-  req.on('end',()=>{try{cb(null,JSON.parse(body))}catch(e){cb(e)}});
+  let body='';let size=0;let aborted=false;
+  req.on('data',c=>{
+    size+=c.length;
+    if(size>maxSize){aborted=true;req.destroy();return}
+    body+=c;
+  });
+  req.on('end',()=>{
+    if(aborted)return cb(new Error('body too large'));
+    try{cb(null,JSON.parse(body))}catch(e){cb(e)}
+  });
+  req.on('error',()=>{if(!aborted)cb(new Error('request error'))});
 }
 
 // ══════════════════════════════════════════
@@ -246,11 +276,16 @@ function handleAuth(req,res,action){
       const users=getUsers();const u=users[user.toLowerCase()];
       if(!u){res.statusCode=401;res.end('{"error":"invalid credentials"}');return}
       let valid=false;
-      if(u.salt&&u.hash){valid=verifyPw(pass,u.hash,u.salt)}
+      if(u.salt&&u.hash){valid=verifyPw(pass,u.hash,u.salt,u.algo||'')}
       else if(u.pass){valid=u.pass===pass;if(valid){
-        // Auto-migrate plaintext → hashed
-        const{hash,salt}=hashPw(pass);u.hash=hash;u.salt=salt;delete u.pass;saveUsersObj(users);
+        // Auto-migrate plaintext → scrypt
+        const{hash,salt,algo}=hashPw(pass);u.hash=hash;u.salt=salt;u.algo=algo;delete u.pass;saveUsersObj(users);
       }}
+      if(!valid){res.statusCode=401;res.end('{"error":"invalid credentials"}');return}
+      // Auto-migrate SHA-256 → scrypt on successful login
+      if(valid&&u.algo!=='scrypt'&&u.salt&&u.hash){
+        const{hash,salt,algo}=hashPw(pass);u.hash=hash;u.salt=salt;u.algo=algo;saveUsersObj(users);
+      }
       if(!valid){res.statusCode=401;res.end('{"error":"invalid credentials"}');return}
       clearAuthRate(user);
       const token=createSession(user);
@@ -269,9 +304,9 @@ function handleAuth(req,res,action){
       if(!checkAuthRate('reg_'+user)){res.statusCode=429;res.end('{"error":"too many attempts"}');return}
       const users=getUsers();
       if(users[user.toLowerCase()]){res.statusCode=409;res.end('{"error":"username taken"}');return}
-      const{hash,salt}=hashPw(pass);
-      const{hash:ansHash,salt:ansSalt}=hashPw(answer.toLowerCase());
-      users[user.toLowerCase()]={user,email,hash,salt,question,ansHash,ansSalt,created:Date.now()};
+      const{hash,salt,algo}=hashPw(pass);
+      const{hash:ansHash,salt:ansSalt,algo:ansAlgo}=hashPw(answer.toLowerCase());
+      users[user.toLowerCase()]={user,email,hash,salt,algo,question,ansHash,ansSalt,ansAlgo,created:Date.now()};
       saveUsersObj(users);
       res.end(JSON.stringify({ok:true}));
 
@@ -279,22 +314,25 @@ function handleAuth(req,res,action){
     }else if(action==='reset1'){
       const user=(data.user||'').trim();
       if(!user){res.statusCode=400;res.end('{"error":"missing user"}');return}
+      if(!checkAuthRate('reset_'+user)){res.statusCode=429;res.end('{"error":"too many attempts"}');return}
       const users=getUsers();const u=users[user.toLowerCase()];
-      if(!u){res.statusCode=404;res.end('{"error":"user not found"}');return}
-      res.end(JSON.stringify({ok:true,question:u.question||''}));
+      // Always return 200 to prevent username enumeration (H2)
+      res.end(JSON.stringify({ok:true,question:u?u.question||'':''}));
 
     // ── RESET STEP 2: verify answer + set new password ──
     }else if(action==='reset2'){
       const user=(data.user||'').trim();const answer=data.answer||'';const newPass=data.newPass||'';
       if(!user||!answer||!newPass){res.statusCode=400;res.end('{"error":"missing fields"}');return}
       if(newPass.length<8){res.statusCode=400;res.end('{"error":"password min 8 chars"}');return}
+      if(!checkAuthRate('reset_'+user)){res.statusCode=429;res.end('{"error":"too many attempts"}');return}
       const users=getUsers();const u=users[user.toLowerCase()];
-      if(!u){res.statusCode=404;res.end('{"error":"user not found"}');return}
+      // Generic error for both "user not found" and "wrong answer" (H2)
+      if(!u){res.statusCode=401;res.end('{"error":"invalid"}');return}
       let ansValid=false;
-      if(u.ansSalt&&u.ansHash){ansValid=verifyPw(answer.toLowerCase(),u.ansHash,u.ansSalt)}
+      if(u.ansSalt&&u.ansHash){ansValid=verifyPw(answer.toLowerCase(),u.ansHash,u.ansSalt,u.ansAlgo||'')}
       else{ansValid=(u.answer||'').toLowerCase()===answer.toLowerCase()}
-      if(!ansValid){res.statusCode=401;res.end('{"error":"wrong answer"}');return}
-      const{hash,salt}=hashPw(newPass);u.hash=hash;u.salt=salt;delete u.pass;
+      if(!ansValid){res.statusCode=401;res.end('{"error":"invalid"}');return}
+      const{hash,salt,algo}=hashPw(newPass);u.hash=hash;u.salt=salt;u.algo=algo;delete u.pass;
       saveUsersObj(users);
       res.end(JSON.stringify({ok:true}));
 
@@ -306,7 +344,7 @@ function handleAuth(req,res,action){
       if(!newPass||newPass.length<8){res.statusCode=400;res.end('{"error":"password min 8 chars"}');return}
       const users=getUsers();const u=users[sessionUser];
       if(!u){res.statusCode=404;res.end('{"error":"user not found"}');return}
-      const{hash,salt}=hashPw(newPass);u.hash=hash;u.salt=salt;delete u.pass;
+      const{hash,salt,algo}=hashPw(newPass);u.hash=hash;u.salt=salt;u.algo=algo;delete u.pass;
       saveUsersObj(users);
       res.end(JSON.stringify({ok:true}));
 
@@ -315,15 +353,19 @@ function handleAuth(req,res,action){
       const pass=data.pass||'';
       if(!pass){res.statusCode=400;res.end('{"error":"missing password"}');return}
       const admin=readJSON(FILES.admin);
-      let stored=admin.lx_admin_hash_v2?JSON.parse(admin.lx_admin_hash_v2):null;
+      let stored=null;try{stored=admin.lx_admin_hash_v2?JSON.parse(admin.lx_admin_hash_v2):null}catch(e){console.error('Corrupt admin hash:',e)}
       if(!stored){
-        const{hash,salt}=hashPw('logistix2025');
-        stored={hash,salt};
+        // First start: use env var or generate random password
+        const initPw=ADMIN_DEFAULT_PW||crypto.randomBytes(12).toString('base64url');
+        const{hash,salt,algo}=hashPw(initPw);
+        stored={hash,salt,algo};
         admin.lx_admin_hash_v2=JSON.stringify(stored);writeJSON(FILES.admin,admin);
+        if(!ADMIN_DEFAULT_PW)console.log('🔑 Generated admin password: '+initPw+' (change via Admin-Panel!)');
       }
-      const valid=verifyPw(pass,stored.hash,stored.salt);
+      const valid=verifyPw(pass,stored.hash,stored.salt,stored.algo||'');
       if(!valid){res.statusCode=401;res.end('{"error":"invalid admin password"}');return}
-      const isDefault=verifyPw('logistix2025',stored.hash,stored.salt);
+      // Check if still using legacy/default password (algo missing = old SHA-256 hash)
+      const isDefault=!stored.algo;
       const sessionUser=getSession(req);
       if(sessionUser){
         adminSessions[sessionUser]=true;
@@ -383,10 +425,10 @@ function handleAuth(req,res,action){
       const pass=data.pass||'';const newPass=data.newPass||'';
       if(!pass||!newPass||newPass.length<4){res.statusCode=400;res.end('{"error":"invalid"}');return}
       const admin=readJSON(FILES.admin);
-      const stored=admin.lx_admin_hash_v2?JSON.parse(admin.lx_admin_hash_v2):null;
-      if(!stored||!verifyPw(pass,stored.hash,stored.salt)){res.statusCode=401;res.end('{"error":"wrong password"}');return}
-      const{hash,salt}=hashPw(newPass);
-      admin.lx_admin_hash_v2=JSON.stringify({hash,salt});writeJSON(FILES.admin,admin);
+      let stored=null;try{stored=admin.lx_admin_hash_v2?JSON.parse(admin.lx_admin_hash_v2):null}catch(e){console.error('Corrupt admin hash:',e)}
+      if(!stored||!verifyPw(pass,stored.hash,stored.salt,stored.algo||'')){res.statusCode=401;res.end('{"error":"wrong password"}');return}
+      const{hash,salt,algo}=hashPw(newPass);
+      admin.lx_admin_hash_v2=JSON.stringify({hash,salt,algo});writeJSON(FILES.admin,admin);
       res.end(JSON.stringify({ok:true}));
 
     // ── GET USERS LIST (admin only, requires admin session header) ──
@@ -405,9 +447,9 @@ function handleAuth(req,res,action){
     }else if(action==='ensuretest'){
       const users=getUsers();
       if(!users.test||!users.test.hash){
-        const{hash,salt}=hashPw('test');
-        const{hash:ansHash,salt:ansSalt}=hashPw('test');
-        users.test={user:'Test',email:'test@logistix.de',hash,salt,question:'Was ist das Testpasswort?',ansHash,ansSalt,created:Date.now()};
+        const{hash,salt,algo}=hashPw('test');
+        const{hash:ansHash,salt:ansSalt,algo:ansAlgo}=hashPw('test');
+        users.test={user:'Test',email:'test@logistix.de',hash,salt,algo,question:'Was ist das Testpasswort?',ansHash,ansSalt,ansAlgo,created:Date.now()};
         saveUsersObj(users);
       }
       res.end(JSON.stringify({ok:true}));
@@ -488,7 +530,11 @@ const MIME={'.html':'text/html','.js':'application/javascript','.css':'text/css'
   '.json':'application/json','.png':'image/png','.ico':'image/x-icon','.svg':'image/svg+xml'};
 
 http.createServer((req,res)=>{
-  const ip=req.socket.remoteAddress||'?';
+  // M3: Use X-Forwarded-For when behind reverse proxy (TRUST_PROXY=1)
+  const rawIp=req.socket.remoteAddress||'?';
+  const ip=(process.env.TRUST_PROXY==='1'&&req.headers['x-forwarded-for'])
+    ?(req.headers['x-forwarded-for']||'').split(',')[0].trim()||rawIp
+    :rawIp;
   if(!checkRate(ip)){res.statusCode=429;res.setHeader('Retry-After','60');res.end('Too Many Requests');return}
 
   const url=new URL(req.url,'http://localhost');
