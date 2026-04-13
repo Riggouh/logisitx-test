@@ -217,7 +217,7 @@ function setHeaders(req,res){
   res.setHeader('X-Frame-Options','SAMEORIGIN');
   res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
 }
-const CSP="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de; connect-src 'self' router.project-osrm.org";
+const CSP="default-src 'self'; manifest-src 'self' data:; worker-src 'self' blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de *.opentopomap.org *.arcgisonline.com *.basemaps.cartocdn.com; connect-src 'self' router.project-osrm.org nominatim.openstreetmap.org";
 
 // ── Body parser helper ──
 function readBody(req,maxSize,cb){
@@ -391,11 +391,15 @@ function handleAuth(req,res,action){
 
     // ── GET USERS LIST (admin only, requires admin session header) ──
     }else if(action==='users'){
-      // Verify admin: require X-Admin-Token header
-      const adminToken=req.headers['x-admin-token']||'';
-      if(!adminToken){res.statusCode=401;res.end('{"error":"admin auth required"}');return}
+      const sessionUser=getSession(req);
+      if(!sessionUser||!adminSessions[sessionUser]){res.statusCode=403;res.end('{"error":"admin auth required"}');return}
       const users=getUsers();
-      res.end(JSON.stringify({ok:true,users}));
+      // Strip sensitive fields
+      const safe={};
+      for(const [k,u] of Object.entries(users)){
+        safe[k]={user:u.user||k,email:u.email||'',created:u.created||0,question:u.question||''};
+      }
+      res.end(JSON.stringify({ok:true,users:safe}));
 
     // ── ENSURE TEST ACCOUNT ──
     }else if(action==='ensuretest'){

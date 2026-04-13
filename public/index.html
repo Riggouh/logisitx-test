@@ -1000,7 +1000,6 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
 <div id="loginScreen"><div class="start-box">
   <div class="slogo">LOGISTI<b>X</b></div>
   <div class="ssub">Baue dein globales Logistik-Imperium <span id="loginVer" style="opacity:.4;font-size:11px">v2.1</span></div>
-  <script>document.getElementById('loginVer').textContent='v2.1 #'+window.BUILD_NUM;</script>
   <div id="authBox">
     <div id="authTabs" style="display:flex;gap:2px;margin-bottom:16px">
       <button class="auth-tab on" onclick="showAuth('login')">Anmelden</button>
@@ -1135,7 +1134,6 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
 
   <!-- Version tag -->
   <div class="version-tag" id="verTag">v2.1</div>
-  <script>document.getElementById('verTag').textContent='v2.1 #'+window.BUILD_NUM;</script>
     <button class="mob-nav-btn" onclick="if(viewMode!=='dashboard'){toggleView()}else{renDash()}" id="mnDash"><i class="ri-dashboard-line"></i><span>Dashboard</span></button>
     <button class="mob-nav-btn" onclick="if(viewMode!=='map')toggleView()" id="mnMap"><i class="ri-map-2-line"></i><span>Karte</span></button>
     <button class="mob-nav-btn mob-nav-main" onclick="computerOpen?closeComputer():openComputer()" id="mnTerm"><i class="ri-terminal-box-line"></i><span>Terminal</span></button>
@@ -1196,6 +1194,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
     <div class="ally-content" id="allyBody"></div>
   </div>
 </div>
+<script>window.BUILD_NUM='260413.0949';</script>
 <script>(function(){
   if(window.storage) return;
   const BASE='/api/storage';
@@ -1264,12 +1263,15 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
       const r=await fetch('/api/auth/removeadmin',{method:'POST',headers:{'Content-Type':'application/json','X-Session':getToken()},body:JSON.stringify({user})});
       return r.json();
     },
+    async getUsers(){
+      const r=await fetch('/api/auth/users',{method:'POST',headers:{'Content-Type':'application/json','X-Session':getToken()},body:'{}'});
+      return r.json();
+    },
     available:true
   };
 })();
 </script>
 <script>
-window.BUILD_NUM='260413.0934';
 function bindAll(){}
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -10833,15 +10835,16 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
     const res=G.storRes[c.id];
     const totalRes=sumObj(res);
     const resOpen=window._showResUI===c.id;
+    // cityMode needed for items below (outside resOpen block)
+    if(!G.resModes)G.resModes={};
+    if(!G.resModes[c.id])G.resModes[c.id]=G.resMode||'exclusive';
+    const cityMode=G.resModes[c.id];
     h+='<div style="cursor:pointer;display:flex;align-items:center;gap:6px;margin:8px 0 4px;padding:6px 8px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="window._showResUI=window._showResUI===\''+c.id+'\'?null:\''+c.id+'\';renComp()">';
     h+='<span style="color:var(--a2)">'+(resOpen?'▼':'▶')+'</span>';
     h+='<span style="font-weight:600;font-size:12px;color:var(--a2)">📋 Reservierungen</span>';
     h+='<span class="sub" style="font-size:11px">'+totalRes+'/'+cap+(totalRes?' · '+Object.keys(res).filter(g=>res[g]>0).length+' Waren':'')+'</span></div>';
     if(resOpen){
       // Mode toggle (per city)
-      if(!G.resModes)G.resModes={};
-      if(!G.resModes[c.id])G.resModes[c.id]=G.resMode||'exclusive'; // migrate from global
-      let cityMode=G.resModes[c.id];
       h+='<div style="display:flex;gap:4px;margin-bottom:8px">';
       h+='<button class="btn sm" style="font-size:10px;'+(cityMode==='exclusive'?'background:rgba(56,189,248,.12);color:var(--a2);border-color:rgba(56,189,248,.3)':'')+ '" onclick="if(!G.resModes)G.resModes={};G.resModes[\''+c.id+'\']=\'exclusive\';save();renComp()">🔒 Exklusiv</button>';
       h+='<button class="btn sm" style="font-size:10px;'+(cityMode==='minimum'?'background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)':'')+ '" onclick="if(!G.resModes)G.resModes={};G.resModes[\''+c.id+'\']=\'minimum\';save();renComp()">📊 Mindest</button>';
@@ -14006,7 +14009,12 @@ function registerAdminRenderUI(cbs){Object.assign(_adminRenderUI,cbs)}
 
 async function renderAdmin(){
   const panel=_adminRenderUI.getPanel();if(!panel)return;
-  const users=await getUsers();
+  // Phase 2: get users from server API (lx_users is blocked from generic storage)
+  let users={};
+  if(window.serverAuth?.available){
+    try{const res=await window.serverAuth.getUsers();if(res.ok&&res.users)users=res.users}catch(e){console.warn('Admin getUsers:',e)}
+  }
+  if(!Object.keys(users).length){try{users=await getUsers()}catch(e){}}
   const userKeys=Object.keys(users).sort();
   // Pre-load all saves for sidebar + alerts
   const saves={};
@@ -15514,6 +15522,13 @@ document.dispatchEvent(new Event('lxReady'));
   },{passive:true});
   document.addEventListener('touchend',()=>{if(_timer)clearTimeout(_timer);_timer=null},{passive:true});
   document.addEventListener('touchmove',()=>{if(_timer)clearTimeout(_timer);_timer=null},{passive:true});
+})();
+
+// Set build version tags
+(function(){
+  const v='v2.1 #'+(window.BUILD_NUM||'?');
+  const el1=document.getElementById('loginVer');if(el1)el1.textContent=v;
+  const el2=document.getElementById('verTag');if(el2)el2.textContent=v;
 })();
 </script>
 </body></html>
