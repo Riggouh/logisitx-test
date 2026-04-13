@@ -999,7 +999,8 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
 <!-- ═══ LOGIN ═══ -->
 <div id="loginScreen"><div class="start-box">
   <div class="slogo">LOGISTI<b>X</b></div>
-  <div class="ssub">Baue dein globales Logistik-Imperium <span style="opacity:.4;font-size:11px">v2.1</span></div>
+  <div class="ssub">Baue dein globales Logistik-Imperium <span id="loginVer" style="opacity:.4;font-size:11px">v2.1</span></div>
+  <script>document.getElementById('loginVer').textContent='v2.1 #'+window.BUILD_NUM;</script>
   <div id="authBox">
     <div id="authTabs" style="display:flex;gap:2px;margin-bottom:16px">
       <button class="auth-tab on" onclick="showAuth('login')">Anmelden</button>
@@ -1133,7 +1134,8 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   <div class="mob-nav" id="mobNav">
 
   <!-- Version tag -->
-  <div class="version-tag">v2.1</div>
+  <div class="version-tag" id="verTag">v2.1</div>
+  <script>document.getElementById('verTag').textContent='v2.1 #'+window.BUILD_NUM;</script>
     <button class="mob-nav-btn" onclick="if(viewMode!=='dashboard'){toggleView()}else{renDash()}" id="mnDash"><i class="ri-dashboard-line"></i><span>Dashboard</span></button>
     <button class="mob-nav-btn" onclick="if(viewMode!=='map')toggleView()" id="mnMap"><i class="ri-map-2-line"></i><span>Karte</span></button>
     <button class="mob-nav-btn mob-nav-main" onclick="computerOpen?closeComputer():openComputer()" id="mnTerm"><i class="ri-terminal-box-line"></i><span>Terminal</span></button>
@@ -1267,6 +1269,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
 })();
 </script>
 <script>
+window.BUILD_NUM='260413.0934';
 function bindAll(){}
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -7913,19 +7916,19 @@ function _renderHome(){
   // ── Quick actions (context-dependent) ──
   h+='<div class="home-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
   if(isNew){
-    h+='<div class="crd" class="card-cta" onclick="openComputer();setCompTab(\'dealer\')"><div style="font-size:24px">🚛</div><div class="sec-title-sm">Fahrzeug kaufen</div><div class="sub">Im Händler</div></div>';
-    h+='<div class="crd" class="card-cta" onclick="openComputer();setCompTab(\'buildings\');bldSub=\'build\'"><div style="font-size:24px">🏭</div><div class="sec-title-sm">Gebäude bauen</div><div class="sub">Produktion starten</div></div>';
-    h+='<div class="crd" class="card-cta" onclick="openComputer();setCompTab(\'logistics\')"><div style="font-size:24px">📋</div><div class="sec-title-sm">Aufträge</div><div class="sub">Annehmen & liefern</div></div>';
-    h+='<div class="crd" class="card-cta" onclick="showWiki()"><div style="font-size:24px">📖</div><div class="sec-title-sm">Wiki / Hilfe</div><div class="sub">Alles erklärt</div></div>';
+    h+='<div class="crd card-cta" onclick="openComputer();setCompTab(\'dealer\')"><div style="font-size:24px">🚛</div><div class="sec-title-sm">Fahrzeug kaufen</div><div class="sub">Im Händler</div></div>';
+    h+='<div class="crd card-cta" onclick="openComputer();setCompTab(\'buildings\');bldSub=\'build\'"><div style="font-size:24px">🏭</div><div class="sec-title-sm">Gebäude bauen</div><div class="sub">Produktion starten</div></div>';
+    h+='<div class="crd card-cta" onclick="openComputer();setCompTab(\'logistics\')"><div style="font-size:24px">📋</div><div class="sec-title-sm">Aufträge</div><div class="sub">Annehmen & liefern</div></div>';
+    h+='<div class="crd card-cta" onclick="showWiki()"><div style="font-size:24px">📖</div><div class="sec-title-sm">Wiki / Hilfe</div><div class="sub">Alles erklärt</div></div>';
   } else {
     const openOrds=G.orders.filter(o=>!o.acc).length;
     const activeOrds=G.orders.filter(o=>o.acc).length;
     const idleVehs=G.vehs.filter(v=>v.st==='idle').length;
     const movingVehs=G.vehs.filter(v=>v.st==='moving').length;
-    h+='<div class="crd'+(openOrds?' info':'')+'" class="card-cta-sm" onclick="openComputer();setCompTab(\'logistics\')"><div class="rw"><span style="font-size:20px">📋</span><div><div class="fw6">'+openOrds+' offen</div><div class="sub">'+activeOrds+' aktiv</div></div></div></div>';
-    h+='<div class="crd'+(idleVehs===0?' warn':'')+'" class="card-cta-sm" onclick="openComputer();setCompTab(\'fleet\')"><div class="rw"><span style="font-size:20px">🚛</span><div><div class="fw6">'+idleVehs+' frei</div><div class="sub">'+movingVehs+' unterwegs</div></div></div></div>';
-    h+='<div class="crd" class="card-cta-sm" onclick="openComputer()"><div class="t-center"><span style="font-size:20px">💻</span><div style="font-weight:600;margin-top:2px">Terminal</div></div></div>';
-    h+='<div class="crd" class="card-cta-sm" onclick="toggleView()"><div class="t-center"><span style="font-size:20px">🗺️</span><div style="font-weight:600;margin-top:2px">Karte</div></div></div>';
+    h+='<div class="crd'+(openOrds?' info':'')+' card-cta-sm" onclick="openComputer();setCompTab(\'logistics\')"><div class="rw"><span style="font-size:20px">📋</span><div><div class="fw6">'+openOrds+' offen</div><div class="sub">'+activeOrds+' aktiv</div></div></div></div>';
+    h+='<div class="crd'+(idleVehs===0?' warn':'')+' card-cta-sm" onclick="openComputer();setCompTab(\'fleet\')"><div class="rw"><span style="font-size:20px">🚛</span><div><div class="fw6">'+idleVehs+' frei</div><div class="sub">'+movingVehs+' unterwegs</div></div></div></div>';
+    h+='<div class="crd card-cta-sm" onclick="openComputer()"><div class="t-center"><span style="font-size:20px">💻</span><div style="font-weight:600;margin-top:2px">Terminal</div></div></div>';
+    h+='<div class="crd card-cta-sm" onclick="toggleView()"><div class="t-center"><span style="font-size:20px">🗺️</span><div style="font-weight:600;margin-top:2px">Karte</div></div></div>';
   }
   h+='</div>';
 
@@ -8095,7 +8098,7 @@ function dashHQ(){
     const hint=_getNextActionHint();
     if(hint){
       h+='<div class="dash-card" style="border-color:rgba(56,189,248,.2);background:rgba(56,189,248,.03)">';
-      h+='<div class="dash-card-title" class="c-a2">💡 Nächster Schritt</div>';
+      h+='<div class="dash-card-title c-a2">💡 Nächster Schritt</div>';
       h+='<div style="font-size:12px;padding:4px 0;cursor:pointer" onclick="'+hint.act+'">'+hint.em+' '+hint.text+' <span style="color:var(--a)">→</span></div>';
       h+='</div>';
     }
@@ -8228,11 +8231,11 @@ function dashOrders(){
   });
 
   return html`<div class="dash-grid">
-    <div class="dash-card" class="span2">
+    <div class="dash-card span2">
       <div class="dash-card-title">📋 Aktive Aufträge · ${acc.length}</div>
       ${acc.length ? activeCards : html`${sub('Keine aktiven Aufträge','padding:6px;text-align:center')}`}
     </div>
-    <div class="dash-card" class="span2">
+    <div class="dash-card span2">
       <div class="dash-card-title">📬 Verfügbar · ${open.length}</div>
       ${open.length ? openCards : html`${sub('Keine offenen Aufträge','padding:6px;text-align:center')}`}
       <button class="btn sm" style="margin-top:4px"
@@ -8261,7 +8264,7 @@ function dashMarket(){
     h+='<div class="flex-sb-row"><span>'+(gd?.em||'')+' '+(gd?.name||g)+'</span><span class="mono"><span style="color:var(--a)">'+fmt(p)+'</span> <span style="color:'+(diff>10?'var(--a)':'var(--td)')+';font-size:9px">'+(diff>0?'+':'')+diff+'%</span></span></div>'});
   h+='<button class="btn sm" style="margin-top:4px" onclick="openComputer();setCompTab(\'market\')">→ Markt</button></div>';
   // Regional
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">🌍 Regionale Preise</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">🌍 Regionale Preise</div>';
   h+='<div class="overflow-x"><table style="width:100%;border-collapse:collapse;font-size:10px"><tr><th style="text-align:left;padding:3px 4px;color:var(--td)">Ware</th>';
   regs.forEach(r=>{const ri=REGIONS[r];h+='<th style="padding:3px 4px;color:var(--td)">'+(ri?.em||'')+' '+(ri?.name||r)+'</th>'});
   h+='</tr>';
@@ -8283,8 +8286,8 @@ function dashProduction(){
   h+='<div class="dash-card"><div class="dash-card-title">🏭 Produktionsübersicht</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
   const active=allBlds.filter(b=>b.active!==false).length;
-  h+='<div class="crd" class="center-pad"><div style="font-size:18px;font-family:var(--mono);color:var(--a)">'+active+'</div><div class="dash-sub">Aktiv</div></div>';
-  h+='<div class="crd" class="center-pad"><div style="font-size:18px;font-family:var(--mono)">'+allBlds.length+'</div><div class="dash-sub">Gesamt</div></div></div>';
+  h+='<div class="crd center-pad"><div style="font-size:18px;font-family:var(--mono);color:var(--a)">'+active+'</div><div class="dash-sub">Aktiv</div></div>';
+  h+='<div class="crd center-pad"><div style="font-size:18px;font-family:var(--mono)">'+allBlds.length+'</div><div class="dash-sub">Gesamt</div></div></div>';
   // By type
   const byType={};allBlds.forEach(b=>{const d=BLD[b.type];if(d){if(!byType[d.cat])byType[d.cat]=0;byType[d.cat]++}});
   Object.entries(byType).forEach(([cat,n])=>{h+='<div class="sub">'+cat+': '+n+'</div>'});
@@ -8300,7 +8303,7 @@ function dashProduction(){
     h+='<div class="action-row"><span style="color:var(--r)">'+(GOODS[bn.good]?.em||'')+' '+(GOODS[bn.good]?.name||'')+' fehlt</span> <span class="sub">'+bn.building+' in '+bn.city+' ('+bn.have+'/'+bn.need+')</span></div>'});
   h+='</div>';
   // Per city
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">📍 Standorte</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">📍 Standorte</div>';
   cities.forEach(c=>{const blds=G.blds[c.id]||[];if(!blds.length)return;
     h+='<div class="crd" style="padding:4px 8px;cursor:pointer" onclick="selectLocation(\''+c.id+'\');openComputer();setCompTab(\'buildings\')">';
     h+='<div class="rw"><span class="fw6">📍 '+c.name+'</span><span class="sub">'+blds.length+' Gebäude</span></div>';
@@ -8340,7 +8343,7 @@ function dashLogistics(){
     h+='<div class="pb" style="height:2px"><div class="pf" style="width:'+pct*100+'%;background:'+(isA?'#a855f7':isM?'var(--go)':'var(--a)')+'"></div></div></div>'});
   h+='<button class="btn sm" style="margin-top:4px" onclick="openComputer();setCompTab(\'logistics\');G.logSub=\'orders\'">→ Alle Fahrzeuge</button></div>';
   // By city
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">📍 Fahrzeuge pro Standort</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">📍 Fahrzeuge pro Standort</div>';
   const byCty={};G.vehs.forEach(v=>{const loc=v.st==='idle'?v.loc:(v.depot||v.loc);if(!byCty[loc])byCty[loc]={idle:0,moving:0};if(v.st==='idle')byCty[loc].idle++;else byCty[loc].moving++});
   Object.entries(byCty).sort((a,b)=>(b[1].idle+b[1].moving)-(a[1].idle+a[1].moving)).forEach(([loc,d])=>{const c=C(loc);if(!c)return;
     h+='<div class="flex-sb-row3"><span>📍 '+c.name+'</span><span><span style="color:var(--a)">🟢'+d.idle+'</span> <span class="c-amber">🔶'+d.moving+'</span></span></div>'});
@@ -8376,7 +8379,7 @@ function dashFinance(){
   h+='</div>';
 
   // Cost analysis
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">📉 Kostenanalyse</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">📉 Kostenanalyse</div>';
   const bldCost=Object.values(G.blds).flat().reduce((s,b)=>{const d=BLD[b.type];return s+(d?d.price:0)},0);
   const infraCost=Object.values(G.infra||{}).flat().reduce((s,i)=>s+(i.cost||0),0);
   const vehCost2=G.vehs.reduce((s,v)=>{const vt=VT[v.type];return s+(vt?vt.price:0)},0);
@@ -8384,7 +8387,7 @@ function dashFinance(){
   const penCost=fin.filter(f=>f.type==='penalty').reduce((s,f)=>s+Math.abs(f.amount),0);
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px">';
   [['🏭',fmt(bldCost),'Gebäude'],['🏢',fmt(infraCost),'Infrastruktur'],['🚛',fmt(vehCost2),'Fahrzeuge'],['🔧',fmt(runCost),'Laufend'],['⚠️',fmt(penCost),'Strafen']].forEach(([em,val,lbl])=>{
-    h+='<div class="crd" class="center-pad"><div style="font-size:13px;font-family:var(--mono)">'+val+'</div><div class="dash-sub">'+em+' '+lbl+'</div></div>'});
+    h+='<div class="crd center-pad"><div style="font-size:13px;font-family:var(--mono)">'+val+'</div><div class="dash-sub">'+em+' '+lbl+'</div></div>'});
   h+='</div>';
   const spent=bldCost+infraCost+vehCost2+runCost+penCost;
   const profit=(G.earned||0)-spent;
@@ -8394,7 +8397,7 @@ function dashFinance(){
 
   // Financial log with filter tabs
   if(!G._finTab)G._finTab='all';
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">📋 Finanzverlauf</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">📋 Finanzverlauf</div>';
   h+='<div class="flex-wrap-4">';
   const finTabs=[['all','Alle'],['income','💰 Einnahmen'],['expense','🛒 Ausgaben'],['running','🔧 Laufend'],['penalty','⚠️ Strafen'],['refund','🔙 Erstattungen'],['quest','🎯 Missionen'],['admin','👑 Admin']];
   finTabs.forEach(([id,lbl])=>{
@@ -8449,7 +8452,7 @@ function dashInventory(){
     h+='<div class="flex-sb-row"><span>'+(gd?.em||'')+' '+(gd?.name||g)+'</span><span><b>'+amt+'×</b> <span style="color:var(--a)">~'+fmt(amt*bp)+'</span></span></div>'});
   h+='</div>';
   // Per city capacity
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">📍 Lager pro Standort</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">📍 Lager pro Standort</div>';
   cities.forEach(c=>{const cap2=cityCap(c.id);const s=G.stor[c.id]||{};const used=sumObj(s);const pct2=cap2?Math.round(used/cap2*100):0;
     h+='<div style="padding:3px 0;border-bottom:1px solid var(--bd)"><div class="rw" style="font-size:11px"><span>📍 '+c.name+'</span><span>'+used+'/'+cap2+' ('+pct2+'%)</span></div>';
     h+='<div class="pb" style="height:3px;margin-top:2px"><div class="pf" style="width:'+pct2+'%;background:'+(pct2>90?'var(--r)':'var(--a)')+'"></div></div></div>'});
@@ -8459,9 +8462,9 @@ function dashInventory(){
 // ═══ ALLIANCE DASHBOARD ═══
 function dashAlliance(){
   let h='<div class="dash-grid">';
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">🤝 Allianz</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">🤝 Allianz</div>';
   h+=sub('Öffne das Allianz-Terminal für Details','padding:8px;text-align:center');
-  h+='<button class="btn full" class="btn-purple" onclick="openAlliancePanel()">🤝 Allianz-Terminal öffnen</button></div>';
+  h+='<button class="btn full btn-purple" onclick="openAlliancePanel()">🤝 Allianz-Terminal öffnen</button></div>';
   h+='</div>';return h;
 }
 
@@ -8492,7 +8495,7 @@ function dashMap(){
   h+='</div>';
 
   // Active routes map
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title">🗺️ Aktive Verbindungen</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title">🗺️ Aktive Verbindungen</div>';
   const routes={};
   G.vehs.filter(v=>v.st==='moving'&&v.rt).forEach(v=>{
     const from=C(v.rt.from)?.name||Cx(v.rt.from)?.name||'?';
@@ -8517,7 +8520,7 @@ function dashAnalytics(){
   h+='<div class="dash-card"><div class="dash-card-title">📊 Key Performance Indicators</div>';
   h+='<div class="grid-2-6">';
   [['📦',totalDels,'Lieferungen'],['💰',fmt(avgRevPerDel),'⌀ pro Lieferung'],['🛣️',avgKmPerDel+' km','⌀ Distanz'],['💵',fmt(profitPerKm)+'/km','Umsatz/km']].forEach(([em,val,lbl])=>{
-    h+='<div class="crd" class="center-pad"><div style="font-size:14px;font-family:var(--mono);color:var(--a)">'+val+'</div><div class="dash-sub">'+em+' '+lbl+'</div></div>'});
+    h+='<div class="crd center-pad"><div style="font-size:14px;font-family:var(--mono);color:var(--a)">'+val+'</div><div class="dash-sub">'+em+' '+lbl+'</div></div>'});
   h+='</div></div>';
 
   // Top routes
@@ -8609,13 +8612,13 @@ function dashAlerts(){
   info.push({em:'🏙️',text:cities.length+' Standorte · '+Object.values(G.blds).flat().length+' Gebäude'});
 
   // Render
-  h+='<div class="dash-card" class="span2"><div class="dash-card-title" style="color:var(--r)">🔴 Probleme · '+problems.length+'</div>';
+  h+='<div class="dash-card span2"><div class="dash-card-title" style="color:var(--r)">🔴 Probleme · '+problems.length+'</div>';
   if(!problems.length)h+='<div class="center-green-p">✅ Keine Probleme!</div>';
   problems.sort((a,b)=>b.sev-a.sev).forEach(p=>{const clr=p.sev>=3?'var(--r)':p.sev>=2?'var(--go)':'var(--td)';
     h+='<div class="row-click-sm" onclick="'+p.act+'"><span style="color:'+clr+'">'+p.em+' '+p.text+' <span style="color:var(--a)">→</span></span></div>'});
   h+='</div>';
 
-  h+='<div class="dash-card"><div class="dash-card-title" class="c-amber">💡 Chancen · '+opportunities.length+'</div>';
+  h+='<div class="dash-card"><div class="dash-card-title c-amber">💡 Chancen · '+opportunities.length+'</div>';
   if(!opportunities.length)h+=sub('Keine besonderen Chancen','padding:6px;text-align:center');
   opportunities.forEach(o=>{
     h+='<div class="row-click-sm" onclick="'+o.act+'"><span class="c-amber">'+o.em+' '+o.text+' <span style="color:var(--a)">→</span></span></div>'});
@@ -8818,14 +8821,14 @@ function showTabTip(tab){
   h+='<div class="tip-tutorial">'+t.tutorial+'</div>';
   if(t.tips&&t.tips.length){h+='<div class="tip-section">Tipps</div>';
     t.tips.forEach(tip=>{h+='<div class="tip-item">💡 '+tip+'</div>'});}
-  h+='<button class="btn full" class="mt10b" onclick="document.getElementById(\'tipPopup\').remove()">Verstanden</button></div>';
+  h+='<button class="btn full mt10b" onclick="document.getElementById(\'tipPopup\').remove()">Verstanden</button></div>';
   render(unsafeHTML(h), popup);
   popup.addEventListener('click',e=>{if(e.target===popup)popup.remove()});
   document.body.appendChild(popup);
 }
 
 function tabHead(tab,title,sub){
-  return'<div class="flex-sb-cols"><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--a)">'+title+'</div><button class="tip-btn" onclick="showTabTip(\''+tab+'\')">💡 Hilfe</button></div>'+(sub?'<div class="sub" class="mb8b">'+sub+'</div>':'');
+  return'<div class="flex-sb-cols"><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--a)">'+title+'</div><button class="tip-btn" onclick="showTabTip(\''+tab+'\')">💡 Hilfe</button></div>'+(sub?'<div class="sub mb8b">'+sub+'</div>':'');
 }
 
 
@@ -9170,17 +9173,17 @@ const CHANGELOG=[
 function showChangelog(){
   let h='<div class="center-mb12"><span style="font-size:28px">📋</span>';
   h+='<div class="mono-hero">Changelog</div>';
-  h+='<div class="sub">Version '+BUILD_VERSION+' · Letzte Änderung am: '+CHANGELOG_DATE+'</div></div>';
+  h+='<div class="sub">Version '+BUILD_VERSION+' #'+(window.BUILD_NUM||'?')+' · Letzte Änderung am: '+CHANGELOG_DATE+'</div></div>';
   CHANGELOG.forEach(v=>{
     h+='<div class="mb12b">';
     h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--bd)">';
     h+='<span style="font-weight:700;font-size:14px">'+v.title+'</span>';
-    h+='<span class="sub" class="mono">'+v.date+'</span></div>';
+    h+='<span class="sub mono">'+v.date+'</span></div>';
     v.items.forEach(item=>{
       h+='<div style="font-size:12px;color:var(--td);padding:2px 0;padding-left:8px;border-left:2px solid var(--bd)">'+item+'</div>'});
     h+='</div>';
   });
-  h+='<button class="btn full" class="mt12b" onclick="closePopup(\'changelogPopup\')">Schließen</button>';
+  h+='<button class="btn full mt12b" onclick="closePopup(\'changelogPopup\')">Schließen</button>';
   createPopup('changelogPopup',h,{maxWidth:'500px'});
   document.body.appendChild(popup);
 }
@@ -9285,12 +9288,12 @@ function renComp(){
     return activeCats.some(cat=>bs.some(b=>catDefs[cat]?.match(b)));
   }
   eh+='<div class="exp-filters" style="display:flex;gap:2px;padding:2px 6px;border-bottom:1px solid var(--bd);font-size:9px;flex-wrap:wrap">';
-  eh+='<button class="tg'+(G._expSort==='alpha'?' g':'')+'" class="tag-xs2" onclick="setExpSort(\'alpha\')">A-Z</button>';
-  eh+='<button class="tg'+(G._expSort==='date'?' g':'')+'" class="tag-xs2" onclick="setExpSort(\'date\')">Neu</button>';
+  eh+='<button class="tg'+(G._expSort==='alpha'?' g':'')+' tag-xs2" onclick="setExpSort(\'alpha\')">A-Z</button>';
+  eh+='<button class="tg'+(G._expSort==='date'?' g':'')+' tag-xs2" onclick="setExpSort(\'date\')">Neu</button>';
   Object.entries(catDefs).forEach(([k,cd])=>{const on=G._expCats[k];
     eh+='<button class="tg'+(on?' g':'')+'" style="cursor:pointer;font-size:9px;padding:1px 4px;opacity:'+(on?1:.5)+'" onclick="toggleExpCat(\''+k+'\')">'+cd.name+'</button>'});
-  eh+='<button class="tg'+(G._expMode==='custom'?' g':'')+'" class="tag-xs2" onclick="toggleExpMode()" title="'+(G._expMode==='region'?'Eigene Gruppen':'Regionale Ansicht')+'">'+(G._expMode==='region'?'📁':'🌍')+'</button>';
-  eh+='<button class="tg" class="tag-xs2" onclick="showExplorerUI()" title="Explorer-Einstellungen">⚙️</button>';
+  eh+='<button class="tg'+(G._expMode==='custom'?' g':'')+' tag-xs2" onclick="toggleExpMode()" title="'+(G._expMode==='region'?'Eigene Gruppen':'Regionale Ansicht')+'">'+(G._expMode==='region'?'📁':'🌍')+'</button>';
+  eh+='<button class="tg tag-xs2" onclick="showExplorerUI()" title="Explorer-Einstellungen">⚙️</button>';
   eh+='</div>';
 
   // Sort cities
@@ -9516,7 +9519,7 @@ function showExplorerUI(){
   h+='</div>';
   // Sort
   h+='<div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">';
-  h+='<span class="sub" class="fw6">Sortierung:</span>';
+  h+='<span class="sub fw6">Sortierung:</span>';
   ['alpha','date'].forEach(s=>{const lbl=s==='alpha'?'A-Z':'Kaufdatum';
     h+='<button class="btn sm" style="'+(G._expSort===s?'background:var(--a);color:var(--bg);border-color:var(--a)':'')+'" onclick="setExpSortUI(\''+s+'\')">'+lbl+'</button>'});
   h+='</div>';
@@ -9525,7 +9528,7 @@ function showExplorerUI(){
   if(G._expMode==='custom'){
     h+='<div style="border:1px solid rgba(61,214,140,.2);border-radius:10px;padding:10px;margin-bottom:12px;background:rgba(61,214,140,.02)">';
     h+='<div class="flex-sb-cols"><span style="font-weight:600;color:var(--a)">📁 Gruppen verwalten</span>';
-    h+='<button class="btn sm" class="btn-green-outline" onclick="_expAddGroup()">+ Neue Gruppe</button></div>';
+    h+='<button class="btn sm btn-green-outline" onclick="_expAddGroup()">+ Neue Gruppe</button></div>';
     if(!G.cityGroups.length)h+=sub('Noch keine Gruppen — erstelle eine!','text-align:center;padding:8px;opacity:.6');
     G.cityGroups.forEach((grp,gi)=>{
       h+='<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--bd)">';
@@ -9583,7 +9586,7 @@ function showExplorerUI(){
     return activeCats.some(([k])=>bs.some(b=>catDefs[k]?.match(b)));
   }).length;
   h+='<div class="sub" style="margin-top:8px;text-align:center">'+visCount+' / '+cities.length+' Standorte sichtbar</div>';
-  h+='<button class="btn full" class="mt12b" onclick="closePopup(\'explorerUIPopup\');renComp()">Schließen</button>';
+  h+='<button class="btn full mt12b" onclick="closePopup(\'explorerUIPopup\');renComp()">Schließen</button>';
   createPopup('explorerUIPopup',h,{maxWidth:'720px',zIndex:'9999'});
 }
 
@@ -9667,7 +9670,7 @@ function compMissions(el){
         const state=q.claimed?'claimed':q.done?'done':'';
         const card=qCard(merged,state,"claimDaily("+i+")",qIco);
         if(card)h+=card;
-        else if(q.claimed)h+='<div class="sub" class="center-green"><i class="ri-check-line"></i> '+(def.name||'')+' ✓</div>';
+        else if(q.claimed)h+='<div class="sub center-green"><i class="ri-check-line"></i> '+(def.name||'')+' ✓</div>';
       });
     } else h+=sub('Werden beim nächsten Tick generiert...','text-align:center;padding:24px');
   }
@@ -9685,7 +9688,7 @@ function compMissions(el){
         const state=q.claimed?'claimed':q.done?'done':'';
         const card=qCard(merged,state,"claimWeekly("+i+")",qIco);
         if(card)h+=card;
-        else if(q.claimed)h+='<div class="sub" class="center-green"><i class="ri-check-line"></i> '+(def.name||'')+' ✓</div>';
+        else if(q.claimed)h+='<div class="sub center-green"><i class="ri-check-line"></i> '+(def.name||'')+' ✓</div>';
       });
     } else h+=sub('Werden beim nächsten Tick generiert...','text-align:center;padding:24px');
   }
@@ -9695,7 +9698,7 @@ function compMissions(el){
     const tutDone=TUTORIAL.filter(q=>G.quests.tutorial[q.id]==='claimed').length;
     if(tutDone<TUTORIAL.length){
       h+='<div class="sec-label"><i class="ri-book-open-line"></i> Tutorial · '+tutDone+'/'+TUTORIAL.length+'</div>';
-      h+='<div class="pb" class="mb8b"><div class="pf" style="width:'+(tutDone/TUTORIAL.length*100)+'%"></div></div>';
+      h+='<div class="pb mb8b"><div class="pf" style="width:'+(tutDone/TUTORIAL.length*100)+'%"></div></div>';
       let shown=0;
       TUTORIAL.forEach(q=>{const s=G.quests.tutorial[q.id];
         if(s==='claimed')return;if(s!=='done'&&shown>=2)return;shown++;
@@ -9743,7 +9746,7 @@ function compMissions(el){
     ];
     const achDone=achs.filter(a=>a.done).length;
     h+='<div class="sub" style="text-align:center;margin-bottom:8px"><b>'+achDone+' / '+achs.length+'</b> Erfolge</div>';
-    h+='<div class="pb" class="mb12b"><div class="pf" style="width:'+(achDone/achs.length*100)+'%;background:#fbbf24"></div></div>';
+    h+='<div class="pb mb12b"><div class="pf" style="width:'+(achDone/achs.length*100)+'%;background:#fbbf24"></div></div>';
     achs.forEach(a=>{
       h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd);opacity:'+(a.done?1:.3)+'">';
       h+='<span style="font-size:16px;width:24px;text-align:center">'+(a.done?'✅':'⬜')+'</span>';
@@ -9756,7 +9759,7 @@ function compMissions(el){
 // ═══ LOCATIONS ═══
 function compDealer(el){
   if(!G.sel&&cities.length)G.sel=cities[0].id;
-  const c=G.sel?C(G.sel):null;if(!c){el.innerHTML='<div class="sub" class="center-p20">Noch kein Standort freigeschaltet</div>';return}
+  const c=G.sel?C(G.sel):null;if(!c){el.innerHTML='<div class="sub center-p20">Noch kein Standort freigeschaltet</div>';return}
   const lvl=playerLvl();
   let h=tabHead('dealer','<i class="ri-store-2-line"></i> Händler','Fahrzeuge für '+c.name+' kaufen');
 
@@ -9873,12 +9876,12 @@ function renderMaintVeh(v){
   h+='<div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">';
   if(v.st==='idle'&&cond<50&&!v.maintQueued)h+='<button class="btn sm" style="background:rgba(248,113,113,.1);color:var(--r);border-color:rgba(248,113,113,.3)" onclick="doMaintenance(\''+v.id+'\')">🔧 '+fmt(maintCost(v))+'</button>';
   if(cond<80&&!v.maintQueued&&(v.st==='moving'||(v.st==='idle'&&v.loc!==(v.depot||v.loc))))
-    h+='<button class="btn sm" class="badge-warn" onclick="queueMaintenance(\''+v.id+'\')">🔧 Wartung einplanen</button>';
+    h+='<button class="btn sm badge-warn" onclick="queueMaintenance(\''+v.id+'\')">🔧 Wartung einplanen</button>';
   if(v.maintQueued)h+='<button class="btn sm" style="font-size:10px" onclick="cancelMaintQueued(\''+v.id+'\')">✕ Wartung abbrechen</button>';
   if(v.st==='moving'&&!v.maintQueued){
     h+='<button class="btn sm" onclick="recallVehicle(\''+v.id+'\')">'+(isSOBound(v)?'🔓 Rückruf (löst DA)':'🔙 Sofort zurück')+'</button>';
     if(!v.recallToDepot)h+='<button class="btn sm" onclick="recallAfterDelivery(\''+v.id+'\')" style="font-size:10px">📦 Nach Lieferung</button>';
-    else h+='<span class="tg" class="c-a-10">✅ → Depot</span>';
+    else h+='<span class="tg c-a-10">✅ → Depot</span>';
   }
   if(v.st==='idle'&&v.loc!==(v.depot||v.loc)&&!v.maintQueued){const depN=C(v.depot)?.name||'Depot';h+='<button class="btn sm" onclick="quickRecall(\''+v.id+'\')">🔙 → '+depN+'</button>';}
   if(v.st==='idle'&&v.loc===(v.depot||v.loc)&&!isSOBound(v)&&!v.maintQueued){const sp=Math.floor(vt.price*0.4);h+='<button class="btn red sm" onclick="event.stopPropagation();sellVehicle(\''+v.id+'\')">💰 Verkaufen +'+fmt(sp)+'</button>';}
@@ -9900,7 +9903,7 @@ function compFleet(el){
   let h=tabHead('fleet','<i class="ri-truck-line"></i> Fuhrpark','Fahrzeuge verwalten');
 
   if(!G.vehs.length){
-  el.innerHTML=h+'<div class="empty-hint" onclick="setCompTab(\'dealer\')"><div class="eh-em">🚛</div><div class="eh-title">Noch keine Fahrzeuge</div><div class="eh-sub">Kaufe im Händler dein erstes Fahrzeug</div><div style="margin-top:8px"><button class="btn sm" class="btn-solid-green">🛒 Zum Händler →</button></div></div>';return}
+  el.innerHTML=h+'<div class="empty-hint" onclick="setCompTab(\'dealer\')"><div class="eh-em">🚛</div><div class="eh-title">Noch keine Fahrzeuge</div><div class="eh-sub">Kaufe im Händler dein erstes Fahrzeug</div><div style="margin-top:8px"><button class="btn sm btn-solid-green">🛒 Zum Händler →</button></div></div>';return}
   // Global summary
   const idle=G.vehs.filter(v=>v.st==='idle'),moving=G.vehs.filter(v=>v.st==='moving');
   const needsMaint=G.vehs.filter(v=>vehCondition(v)<50);
@@ -9963,12 +9966,12 @@ function compFleet(el){
         const idleCount=gr.vids.filter(id=>{const v=findVehicle(id);return v&&v.st==='idle'}).length;
         h+='<div class="crd" style="padding:5px 8px;margin-bottom:3px"><div class="rw"><span style="font-size:12px;font-weight:600">'+sanitize(gr.name)+' <span class="sub">'+vCount+' Fzg · '+idleCount+' frei</span></span>';
         h+='<span class="flex-gap3">';
-        if(idleCount>0)h+='<button class="btn sm" class="badge-xs" onclick="filterByGroup('+gi+')">Zeigen</button>';
-        h+='<button class="btn sm" class="badge-xs" onclick="editVehGroup('+gi+')">✏️</button>';
-        h+='<button class="btn red sm" class="badge-xs" onclick="deleteVehGroup('+gi+')">✕</button>';
+        if(idleCount>0)h+='<button class="btn sm badge-xs" onclick="filterByGroup('+gi+')">Zeigen</button>';
+        h+='<button class="btn sm badge-xs" onclick="editVehGroup('+gi+')">✏️</button>';
+        h+='<button class="btn red sm badge-xs" onclick="deleteVehGroup('+gi+')">✕</button>';
         h+='</span></div></div>';
       });
-      h+='<button class="btn sm" class="mb8b" onclick="createVehGroup()">+ Neue Gruppe</button>';
+      h+='<button class="btn sm mb8b" onclick="createVehGroup()">+ Neue Gruppe</button>';
     }
   }
 
@@ -9985,7 +9988,7 @@ function compFleet(el){
   if(window._vehGroupFilter!==undefined&&G.vehGroups[window._vehGroupFilter]){
     const gr=G.vehGroups[window._vehGroupFilter];
     filtered=filtered.filter(v=>gr.vids.includes(v.id));
-    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:4px 8px;border-radius:8px;border:1px solid var(--a);background:rgba(61,214,140,.05)"><span style="font-size:12px">📁 '+sanitize(gr.name)+'</span><button class="btn sm" class="badge-xs" onclick="window._vehGroupFilter=undefined;renComp()">✕ Filter aufheben</button></div>';
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:4px 8px;border-radius:8px;border:1px solid var(--a);background:rgba(61,214,140,.05)"><span style="font-size:12px">📁 '+sanitize(gr.name)+'</span><button class="btn sm badge-xs" onclick="window._vehGroupFilter=undefined;renComp()">✕ Filter aufheben</button></div>';
   }
 
   // City header
@@ -9995,7 +9998,7 @@ function compFleet(el){
     const dCost=depotUpgradeCost(sc.id);
     if(dCost){const canAfford=G.money>=dCost;h+='<button class="btn sm" style="margin-bottom:8px;'+(canAfford?'':'opacity:.5')+'" onclick="'+(canAfford?"upgradeDepot('"+sc.id+"')":"addLog('❌ Nicht genug Geld');if(typeof toast==='function')toast('❌ Nicht genug Geld','var(--r)')")+'">🏢 Depot → '+(dCap+2)+' Plätze · '+fmt(dCost)+'</button> '}
   } else {
-    h+='<div class="sub" class="mb6b">'+filtered.length+' Fahrzeuge'+(ff!=='all'?' (gefiltert)':'')+' · Standort links wählen für Details</div>';
+    h+='<div class="sub mb6b">'+filtered.length+' Fahrzeuge'+(ff!=='all'?' (gefiltert)':'')+' · Standort links wählen für Details</div>';
   }
 
   // Bulk maintenance (in maint filter or if maintenance warnings)
@@ -10060,7 +10063,7 @@ function compFleet(el){
           h+='<button class="btn red sm" onclick="event.stopPropagation();recallVehicle(\''+v.id+'\')"><i class="ri-arrow-go-back-line"></i> Sofort zurück</button>';
           if(!v.recallToDepot)h+='<button class="btn sm" onclick="event.stopPropagation();recallAfterDelivery(\''+v.id+'\')" style="font-size:10px">🔙 Nach Lieferung</button>';
         }
-        if(cond<80&&!v.maintQueued)h+='<button class="btn sm" class="badge-warn" onclick="event.stopPropagation();queueMaintenance(\''+v.id+'\')">🔧 Wartung</button>';
+        if(cond<80&&!v.maintQueued)h+='<button class="btn sm badge-warn" onclick="event.stopPropagation();queueMaintenance(\''+v.id+'\')">🔧 Wartung</button>';
         if(v.maintQueued)h+='<button class="btn sm" style="font-size:10px" onclick="event.stopPropagation();findVehicle(\''+v.id+'\').maintQueued=false;renComp()">✕ Wartung abbrechen</button>';
         h+='</div></div></div>';
       }
@@ -10230,7 +10233,7 @@ function editVehGroup(gi){
     });
   });
   h+='</div>';
-  h+='<button class="btn full" class="mt12b" onclick="_saveVehGroup('+gi+')">Speichern</button>';
+  h+='<button class="btn full mt12b" onclick="_saveVehGroup('+gi+')">Speichern</button>';
   h+='<button class="btn full sec" style="margin-top:4px" onclick="closePopup(\'vehGrpPopup\')">Abbrechen</button>';
   createPopup('vehGrpPopup',h,{maxWidth:'400px'});
 }
@@ -10505,7 +10508,7 @@ function compFinance(el, append) {
             rw('📉 Ausgaben', `<span style="color:var(--r)">-${fmt(expense)}</span>`) +
             rw('📊 Gewinn', `<span style="color:${income-expense>=0?'var(--a)':'var(--r)'}">${fmt(income-expense)}</span>`))}
       ${entries.length ? html`
-        <div class="sec-label" class="mt10b">Transaktionen</div>
+        <div class="sec-label mt10b">Transaktionen</div>
         <div style="max-height:300px;overflow-y:auto">
           ${entries.slice().reverse().slice(0, 50).map(e => html`
             <div class="rw" style="padding:3px 0;border-bottom:1px solid var(--bd);font-size:12px">
@@ -10562,7 +10565,7 @@ function compAutomation(el, append) {
   h += `<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="G._autoSec.routes=!G._autoSec.routes;renComp()">
     <span style="color:var(--a2)">${on1?'▼':'▶'}</span>
     <span style="font-weight:600;font-size:13px;color:var(--a2)">🗺️ Routenplaner</span></div>`;
-  if (on1) h += '<div id="_autoRoutes"></div>';
+  if (on1) h += '<div id="_autoRoutesInner"></div>';
   // Standing orders section
   const soCount = (G.standingOrders||[]).filter(s=>s.active).length;
   const soTotal = (G.standingOrders||[]).length;
@@ -10572,7 +10575,7 @@ function compAutomation(el, append) {
     <span style="color:var(--go)">${on2?'▼':'▶'}</span>
     <span style="font-weight:600;font-size:13px;color:var(--go)">🔄 Daueraufträge</span>
     <span class="sub" style="margin-left:auto;font-size:11px">${soCount} aktiv${soTotal>soCount?' · '+(soTotal-soCount)+' pausiert':''}${soWarn?' <span style="background:var(--r);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':''}</span></div>`;
-  if (on2) h += '<div id="_autoStanding"></div>';
+  if (on2) h += '<div id="_autoStandingInner"></div>';
 
   // Quick link to chain planner
   if (cities.length && G.sel) {
@@ -10588,8 +10591,8 @@ function compAutomation(el, append) {
   else { el.innerHTML = ''; el.appendChild(div); }
 
   // Populate inner sections after DOM is ready
-  if (on1) { const rEl = document.getElementById('_autoRoutes'); if (rEl && typeof compRoutes === 'function') compRoutes(rEl); }
-  if (on2) { const sEl = document.getElementById('_autoStanding'); if (sEl && typeof compStanding === 'function') compStanding(sEl); }
+  if (on1) { const rEl = document.getElementById('_autoRoutesInner'); if (rEl && typeof compRoutes === 'function') compRoutes(rEl); }
+  if (on2) { const sEl = document.getElementById('_autoStandingInner'); if (sEl && typeof compStanding === 'function') compStanding(sEl); }
 }
 
 function _logisticsFinLog() { if (typeof compFinance === 'function') { const el = document.querySelector('.comp-body'); if (el) compFinance(el, false); } }
@@ -10751,7 +10754,7 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
     render(unsafeHTML(h), el);return;
   }
   h+='<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">';
-  h+='<select class="sl" class="tag-sm2" onchange="G._invFilter=this.value||null;if(this.value)G.sel=this.value;renComp()">';
+  h+='<select class="sl tag-sm2" onchange="G._invFilter=this.value||null;if(this.value)G.sel=this.value;renComp()">';
   h+='<option value=""'+(fc?'':' selected')+'>🌍 Alle Standorte</option>';
   cityData.forEach(d=>{
     h+='<option value="'+d.c.id+'"'+(fc===d.c.id?' selected':'')+(d.used>0||Object.keys(d.bldStock).length>0?'':' class="c-muted"')+'>📍 '+d.c.name+' ('+d.used+'/'+d.cap+')</option>'});
@@ -10796,11 +10799,11 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
             h+='<span class="tg" style="font-size:9px;cursor:pointer" onclick="setInvFilter(\''+ic2.id+'\',\''+ic2.id+'\')">'+label+'</span>'});
           h+='</div>';}
         h+='</div>'});
-    } else h+='<div class="sub" class="center-p12">Kein Bestand'+(G._invCat!=='all'?' in dieser Kategorie':'')+'</div>';
+    } else h+='<div class="sub center-p12">Kein Bestand'+(G._invCat!=='all'?' in dieser Kategorie':'')+'</div>';
   } else {
     // ── SINGLE CITY VIEW ──
     const cd=cityData.find(d=>d.c.id===fc);
-    if(!cd){el.innerHTML=h+'<div class="sub" class="center-p12">Standort nicht gefunden</div>';return}
+    if(!cd){el.innerHTML=h+'<div class="sub center-p12">Standort nicht gefunden</div>';return}
     const c=cd.c,s=cd.s,cap=cd.cap,used=cd.used;
     const reg=getRegion((c.co||'').toUpperCase());
     const _pr=_cityProdRates(c.id);
@@ -10864,7 +10867,7 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
           h+='<div style="display:inline-block;width:30px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;vertical-align:middle;margin-left:4px"><div style="width:'+pct+'%;height:100%;background:'+barCol+';border-radius:2px"></div></div>';
           h+='</span>';
           h+='<input type="number" min="0" max="'+cap+'" value="'+amt+'" style="width:55px;padding:3px 4px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--t);font-family:var(--mono);font-size:11px;text-align:center" onchange="setStorRes(\''+c.id+'\',\''+g+'\',parseInt(this.value,10)||0)">';
-          h+='<button class="btn sm" class="c-r-10" onclick="setStorRes(\''+c.id+'\',\''+g+'\',0)">✕</button>';
+          h+='<button class="btn sm c-r-10" onclick="setStorRes(\''+c.id+'\',\''+g+'\',0)">✕</button>';
           h+='</div>'});
         h+='<div style="text-align:right;margin-top:2px"><button class="btn sm" style="font-size:9px;color:var(--r)" onclick="if(confirm(\'Alle Reservierungen in dieser Stadt löschen?\')){Object.keys(G.storRes[\''+c.id+'\']).forEach(g=>delete G.storRes[\''+c.id+'\'][g]);save();renComp()}">🗑️ Alle löschen</button></div>';
       }
@@ -10899,7 +10902,7 @@ function compInventory(el){let h=tabHead('inventory','📦 Lager','Warenbestand 
           h+='</span>';
           h+='<input type="number" min="0" value="'+curRes+'" max="'+stock+'" style="width:55px;padding:3px 4px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--t);font-family:var(--mono);font-size:11px;text-align:center" onchange="setProdRes(\''+c.id+'\',\''+g+'\',parseInt(this.value,10)||0)">';
           h+='<button class="btn sm" style="font-size:9px;color:var(--a)" onclick="setProdRes(\''+c.id+'\',\''+g+'\','+smart+')">×15</button>';
-          if(curRes)h+='<button class="btn sm" class="c-r-10" onclick="setProdRes(\''+c.id+'\',\''+g+'\',0)">✕</button>';
+          if(curRes)h+='<button class="btn sm c-r-10" onclick="setProdRes(\''+c.id+'\',\''+g+'\',0)">✕</button>';
           h+='</div>';
         });
         h+='</div>';
@@ -11084,7 +11087,7 @@ function compMarket(el){
             const vals=G.priceHist.map(s2=>s2.prices[g]?.[r]||0).filter(v=>v>0);
             if(!vals.length)return;
             const mx=Math.max(...vals);const mn=Math.min(...vals);
-            h+='<div class="mb6b"><div class="sub" class="mb2">'+(ri?.em||'')+' '+(ri?.name||'')+' · '+fmt(mn)+' – '+fmt(mx)+'</div>';
+            h+='<div class="mb6b"><div class="sub mb2">'+(ri?.em||'')+' '+(ri?.name||'')+' · '+fmt(mn)+' – '+fmt(mx)+'</div>';
             h+='<div style="display:flex;align-items:flex-end;gap:2px;height:28px">';
             vals.forEach((v,i)=>{const pct2=mx>mn?((v-mn)/(mx-mn))*100:50;
               h+='<div style="flex:1;background:'+(i===vals.length-1?'var(--a)':'rgba(61,214,140,.3)')+';border-radius:2px 2px 0 0;height:'+Math.max(4,pct2)+'%"></div>'});
@@ -11137,7 +11140,7 @@ function compMarket(el){
     const supply=G.supplyTrack||{};
     const svals=Object.values(supply);
     const avg=svals.length?Math.round(svals.reduce((s2,v)=>s2+v,0)/svals.length):0;
-    h+='<div class="sub" class="mb6b">Ø Angebot: <b>'+avg+'</b> Einheiten/Epoch</div>';
+    h+='<div class="sub mb6b">Ø Angebot: <b>'+avg+'</b> Einheiten/Epoch</div>';
     const goods2=Object.keys(BASE_PRICES).map(g=>{
       const del=supply[g]||0;const ratio=avg>0?del/avg:1;
       const impact=avg>0?Math.round((1-ratio)*30):0;
@@ -11181,7 +11184,7 @@ function compMarket(el){
     h+='<span class="text-muted">'+(G._handelSec.ally?'▼':'▶')+'</span>';
     h+='<span style="font-weight:600;font-size:12px;color:#a855f7">🛒 Allianz-Kaufanfragen</span></div>';
     if(G._handelSec.ally){
-      h+='<div id="allyReqList" style="padding:4px 0"><div class="sub" class="center-pad">Lade...</div></div>';
+      h+='<div id="allyReqList" style="padding:4px 0"><div class="sub center-pad">Lade...</div></div>';
     }
 
     // Section: Spieler-Börse
@@ -11192,7 +11195,7 @@ function compMarket(el){
       if(lvl<PM_MIN_LEVEL){
         h+='<div style="text-align:center;padding:16px"><span style="font-size:24px">🔒</span><div class="sub">Ab Level '+PM_MIN_LEVEL+'</div></div>';
       } else {
-        h+='<div id="pmList" style="padding:4px 0"><div class="sub" class="center-pad">Lade Angebote...</div></div>';
+        h+='<div id="pmList" style="padding:4px 0"><div class="sub center-pad">Lade Angebote...</div></div>';
       }
     }
 
@@ -11249,7 +11252,7 @@ function compMarket(el){
         const mk=await getAllianceMarket();
         const le=document.getElementById('allyReqList');if(!le)return;
         const active=mk.filter(r=>r.filled<r.amt);
-        if(!active.length){le.innerHTML='<div class="sub" class="center-pad">Keine offenen Anfragen</div>';return}
+        if(!active.length){le.innerHTML='<div class="sub center-pad">Keine offenen Anfragen</div>';return}
         let rh='';
         active.forEach(r=>{const gd=GOODS[r.good];const remaining=r.amt-r.filled;const isOwn=G.alliance===r.allianceId;
           rh+='<div style="padding:6px 0;border-bottom:1px solid var(--bd)">';
@@ -11281,7 +11284,7 @@ function compMarket(el){
         offers=offers.filter(o=>(o.amt-(o.amtSold||0))>0);
         const others=offers.filter(o=>o.seller!==currentUser).sort((a,b)=>b.ts-a.ts);
         let oh='';
-        if(!others.length)oh='<div class="sub" class="center-pad">Keine Angebote vorhanden</div>';
+        if(!others.length)oh='<div class="sub center-pad">Keine Angebote vorhanden</div>';
         others.forEach(o=>{
           const gd=GOODS[o.good];const avail=o.amt-(o.amtSold||0);
           const mkt=marketPrice(o.good,getRegion(cities[0]?.co||''));
@@ -11454,10 +11457,10 @@ function compRoutes(el){
 }
 function compTransfer(el){
   let h=tabHead('routes','📦 Warentransfer','Waren zwischen eigenen Standorten versenden');
-  h+='<button class="btn sm" class="mb8b" onclick="routesSub=\'all\';routesShowAll=true;renComp()">← Zurück zu Aufträge</button>';
+  h+='<button class="btn sm mb8b" onclick="routesSub=\'all\';routesShowAll=true;renComp()">← Zurück zu Aufträge</button>';
   if(!G._transferFilter)G._transferFilter='all';
   h+='<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">';
-  h+='<select class="sl" class="tag-sm2" onchange="G._transferFilter=this.value;if(this.value!==\'all\')sel(this.value);renComp()">';
+  h+='<select class="sl tag-sm2" onchange="G._transferFilter=this.value;if(this.value!==\'all\')sel(this.value);renComp()">';
   h+='<option value="all">🌍 Alle Standorte</option>';
   cities.forEach(c=>{
     const allGoods=new Set();Object.keys(G.stor[c.id]||{}).forEach(g=>{if((G.stor[c.id][g]||0)>0)allGoods.add(g)});
@@ -11471,7 +11474,7 @@ function compTransfer(el){
     (G.blds[c.id]||[]).forEach(b=>{if(b.localStor)Object.entries(b.localStor).forEach(([g,a])=>{if(a>0)goods[g]=(goods[g]||0)+a})});return goods};
   let eigCities=G._transferFilter==='all'?cities.filter(c=>Object.keys(cityGoods(c)).length>0):cities.filter(c=>c.id===G._transferFilter&&Object.keys(cityGoods(c)).length>0);
   const totalItems=eigCities.reduce((t,c)=>t+Object.values(cityGoods(c)).reduce((a,v)=>a+v,0),0);
-  h+='<div class="sub" class="mb6b">'+eigCities.length+' Standorte mit Bestand · '+totalItems+' Waren gesamt</div>';
+  h+='<div class="sub mb6b">'+eigCities.length+' Standorte mit Bestand · '+totalItems+' Waren gesamt</div>';
   if(!eigCities.length)h+=sub('Kein Lagerbestand zum Versenden','padding:12px;text-align:center');
   eigCities.forEach(c=>{const goods=cityGoods(c);const items=Object.entries(goods).filter(([,a])=>a>0);if(!items.length)return;
     const vHere=G.vehs.filter(v=>v.st==='idle'&&v.loc===c.id).length;
@@ -11485,7 +11488,7 @@ function compTransfer(el){
       h+='<div class="flex-gap3">';
       if(cityAmt>0&&cities.length>1&&vHere>0)h+='<button class="btn sm" onclick="showSendGoodsPopup(\''+c.id+'\',\''+g+'\','+cityAmt+')">📦 Senden</button>';
       else if(cityAmt>0&&!vHere&&remV>0)h+='<button class="btn sm" style="color:var(--a2);border-color:rgba(56,189,248,.3)" onclick="showSendGoodsPopup(\''+c.id+'\',\''+g+'\','+cityAmt+')">📍 Senden</button>';
-      else if(cityAmt<=0&&bldAmt>0)h+='<span class="sub" class="text-muted-sm">Nur in Gebäuden</span>';
+      else if(cityAmt<=0&&bldAmt>0)h+='<span class="sub text-muted-sm">Nur in Gebäuden</span>';
       else if(!vHere)h+='<span class="sub" style="color:var(--r)">Kein Fahrzeug</span>';
       h+='</div></div>'});
     h+='</div>'});
@@ -11499,7 +11502,7 @@ function compStanding(el){
   const active=sos.filter(so=>so.active).length;
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
   h+='<div style="display:flex;gap:5px"><span class="tg g">'+active+' aktiv</span><span class="tg">'+(sos.length-active)+' pausiert</span></div>';
-  h+='<button class="btn" class="btn-green-outline" onclick="showNewSOPopup()">➕ Neuer Dauerauftrag</button></div>';
+  h+='<button class="btn btn-green-outline" onclick="showNewSOPopup()">➕ Neuer Dauerauftrag</button></div>';
   if(!sos.length)h+=sub('Noch keine Daueraufträge — erstelle einen!','padding:16px;text-align:center;opacity:.6');
   sos.forEach(so=>{const fc=C(so.from),tc2=C(so.to);
     // Normalize to goods array
@@ -11515,7 +11518,7 @@ function compStanding(el){
     const goodsDesc=gl.map(g=>(GOODS[g.good]?.em||'')+' '+(GOODS[g.good]?.name||g.good)).join(', ');
     h+='<div class="rw"><span class="fw6">'+goodsDesc+'</span>';
     h+='<div style="display:flex;gap:3px;align-items:center">';
-    if(paused&&!autoPaused)h+='<span class="tg" class="text-muted">⏸ Pausiert</span>';
+    if(paused&&!autoPaused)h+='<span class="tg text-muted">⏸ Pausiert</span>';
     else if(autoPaused)h+='<span class="tg" style="font-size:10px;color:var(--go)">⚠️ '+(so.pauseReason==='src_empty'?'Kein Nachschub':'Ziel voll')+'</span>';
     else h+='<span class="tg g" style="font-size:10px">▶ Aktiv</span>';
     h+='<button class="btn sm" onclick="toggleStandingOrder(\''+so.id+'\')" title="'+(so.active?'Pausieren':'Fortsetzen')+'">'+(so.active?'⏸️':'▶️')+'</button>';
@@ -11569,7 +11572,7 @@ function compStanding(el){
     if(G.storRes&&G.storRes[so.to]){
       const gl=so.goods||(so.good?[{good:so.good}]:[]);
       const resItems=gl.filter(g=>G.storRes[so.to][g.good]);
-      if(resItems.length){h+='<div class="sub" class="c-td-10">📋 Reserve am Ziel: '+resItems.map(g=>(GOODS[g.good]?.em||'')+G.storRes[so.to][g.good]).join(' ')+'</div>'}
+      if(resItems.length){h+='<div class="sub c-td-10">📋 Reserve am Ziel: '+resItems.map(g=>(GOODS[g.good]?.em||'')+G.storRes[so.to][g.good]).join(' ')+'</div>'}
     }
     h+='</div>'});
   el.innerHTML=h}
@@ -11601,15 +11604,15 @@ function _soPopupRender(popup){
         const sel=st.to===c.id;const fc=C(st.from);const dist=fc?fdist(fc,c):0;
         h+='<div class="crd" style="padding:5px 10px;cursor:pointer;'+(sel?'border-color:var(--a);background:rgba(61,214,140,.06)':'')+'" onclick="const p=document.getElementById(\'soPopup\');p._state.to=\''+c.id+'\';_soPopupRender(p)">';
         h+='<div class="rw"><span>'+(sel?'✅ ':'')+'📍 '+c.name+' <span class="sub">'+dist+' km</span></span><span style="font-size:12px">📦 '+used+'/'+cap+'</span></div></div>'});
-      if(st.to)h+='<button class="btn full" class="btn-success" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">Weiter → Waren</button>';
+      if(st.to)h+='<button class="btn full btn-success" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">Weiter → Waren</button>';
     }
   }
 
   // ═══ STEP 2: Goods selection ═══
   if(st.step===2){
     const fc=C(st.from);const tc=C(st.to);
-    h+='<button class="btn sm" class="mb8b" onclick="const p=document.getElementById(\'soPopup\');p._state.step=1;_soPopupRender(p)">← Route ändern</button>';
-    h+='<div class="crd" class="crd-green-mb"><div style="font-size:13px">'+(fc?.name||'?')+' → '+(tc?.name||'?')+'</div></div>';
+    h+='<button class="btn sm mb8b" onclick="const p=document.getElementById(\'soPopup\');p._state.step=1;_soPopupRender(p)">← Route ändern</button>';
+    h+='<div class="crd crd-green-mb"><div style="font-size:13px">'+(fc?.name||'?')+' → '+(tc?.name||'?')+'</div></div>';
     h+='<div class="fw6 mb6">② Waren auswählen</div>';
     h+='<div class="sub" style="margin-bottom:8px;color:var(--td)">Wähle die Waren für diesen Dauerauftrag. Mengen werden im nächsten Schritt angepasst.</div>';
     // Available goods at source
@@ -11638,7 +11641,7 @@ function _soPopupRender(popup){
       h+='<option value="">+ Ware hinzufügen...</option>';
       unselected.sort((a,b)=>b[1]-a[1]).forEach(([g,a])=>{const gd=GOODS[g];const lbl=a>0?a+'× verfügbar':(producedHere.has(g)?'🏭 wird produziert':'0×');h+='<option value="'+g+'">'+(gd?.em||'')+' '+gd?.name+' ('+lbl+')</option>'});
       h+='</select>';}
-    if(st.goods.length)h+='<button class="btn full" class="btn-success" style="margin-top:8px" onclick="const p=document.getElementById(\'soPopup\');p._state.step=3;_soPopupRender(p)">Weiter → Fahrzeuge</button>';
+    if(st.goods.length)h+='<button class="btn full btn-success" style="margin-top:8px" onclick="const p=document.getElementById(\'soPopup\');p._state.step=3;_soPopupRender(p)">Weiter → Fahrzeuge</button>';
     else h+='<div style="padding:8px;text-align:center;color:var(--td);font-size:12px">Wähle mindestens eine Ware</div>';
   }
 
@@ -11646,8 +11649,8 @@ function _soPopupRender(popup){
   if(st.step===3){
     const fc=C(st.from);const tc=C(st.to);
     const soDist=fc&&tc?Math.round(hav(fc.lat,fc.lng,tc.lat,tc.lng)):0;
-    h+='<button class="btn sm" class="mb8b" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">← Waren ändern</button>';
-    h+='<div class="crd" class="crd-green-mb">';
+    h+='<button class="btn sm mb8b" onclick="const p=document.getElementById(\'soPopup\');p._state.step=2;_soPopupRender(p)">← Waren ändern</button>';
+    h+='<div class="crd crd-green-mb">';
     h+='<div style="font-size:13px">'+(fc?.name||'?')+' → '+(tc?.name||'?')+' · '+st.goods.map(g=>(GOODS[g.good]?.em||'')).join(' ')+'</div></div>';
     h+='<div class="fw6 mb6">③ Fahrzeuge auswählen</div>';
     // Determine spec requirements from selected goods
@@ -11745,10 +11748,10 @@ function showEditSOPopup(soId){
   const gl=so.goods||[];
   let h='';
   h+='<div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--a);margin-bottom:10px">✏️ Dauerauftrag bearbeiten</div>';
-  h+='<div class="crd" class="crd-green">';
-  h+='<div class="sub" class="fw6">'+(fc?.name||'?')+' → '+(C(so.to)?.name||'?')+'</div></div>';
+  h+='<div class="crd crd-green">';
+  h+='<div class="sub fw6">'+(fc?.name||'?')+' → '+(C(so.to)?.name||'?')+'</div></div>';
   // Goods list
-  h+='<div class="mt10b"><div class="sub" class="fw6 mb6">📦 Waren ('+gl.length+')</div>';
+  h+='<div class="mt10b"><div class="sub fw6 mb6">📦 Waren ('+gl.length+')</div>';
   const allGoods=Object.entries(GOODS).filter(([k])=>_cityStock(so.from,k)>0);
   gl.forEach((g,i)=>{
     h+='<div style="display:flex;gap:6px;align-items:center;margin:3px 0;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.03)">';
@@ -11768,7 +11771,7 @@ function showEditSOPopup(soId){
   const assignedVehs=G.vehs.filter(v=>vids.includes(v.id));
   const totalCap=assignedVehs.reduce((s,v)=>s+vehCap(v),0);
   const totalAmt=gl.reduce((s,g)=>s+g.amt,0);
-  h+='<div class="mt10b"><div class="flex-sb-4"><span class="sub" class="fw6">🚛 Fahrzeuge ('+vids.length+' zugewiesen)</span>';
+  h+='<div class="mt10b"><div class="flex-sb-4"><span class="sub fw6">🚛 Fahrzeuge ('+vids.length+' zugewiesen)</span>';
   h+='<span id="soCapInfo" style="font-family:var(--mono);font-size:12px;color:'+(totalAmt>totalCap?'var(--r)':'var(--a)')+'">'+totalAmt+' / '+totalCap+' Kap</span></div>';
   // At origin
   if(atOrigin.length){h+='<div class="sub" style="font-size:10px;margin:4px 0 2px;color:var(--a)">📍 Am Startort · '+fc?.name+' ('+atOrigin.length+')</div>';
@@ -11820,14 +11823,14 @@ function _soSaveEdit(soId){
 
 
 // ═══ BUILDINGS (3 sub-tabs: Verwalten, Bauen, Infrastruktur) ═══
-function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G.sel?C(G.sel):null;if(!c){tabHead('buildings','🏭 Gebäude','')+'<div class="sub" class="center-p20">Standort wählen</div>';return}  const bs=G.blds[c.id]||[],maxB=mxB(c.pop),lvl=playerLvl(),reg=getRegion(c.co),regInfo=REGIONS[reg];
+function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G.sel?C(G.sel):null;if(!c){tabHead('buildings','🏭 Gebäude','')+'<div class="sub center-p20">Standort wählen</div>';return}  const bs=G.blds[c.id]||[],maxB=mxB(c.pop),lvl=playerLvl(),reg=getRegion(c.co),regInfo=REGIONS[reg];
   const cCap2=cityCap(c.id);const stor2=G.stor[c.id]||{},storTot2=sumObj(stor2);
   if(!G.infra)G.infra={};
   let h='';
   // Header
   h+='<div class="ch"><div class="ci">🏭</div><div><div class="cn">'+c.name+'</div>';
   h+='<div class="cm">'+usedSlots(c.id)+'/'+maxB+' · 📦 '+storTot2+'/'+cCap2+(regInfo?' · <span style="color:'+regInfo.color+'">'+regInfo.em+' '+regInfo.name+'</span>':'')+'</div></div></div>';
-  h+='<div class="pb" class="mb6b"><div class="pf" style="width:'+Math.min(100,cCap2?storTot2/cCap2*100:0)+'%"></div></div>';
+  h+='<div class="pb mb6b"><div class="pf" style="width:'+Math.min(100,cCap2?storTot2/cCap2*100:0)+'%"></div></div>';
   // Sub-tab bar (styled like main tabs)
   h+='<div class="bld-tabs">';
   [['build','<i class="ri-hammer-line"></i> Bauen'],['manage','<i class="ri-settings-3-line"></i> Verwalten'+(bs.length?' ('+bs.length+')':'')]].forEach(([st,label])=>{
@@ -11906,8 +11909,8 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
     h+='<div class="empty-hint"><div class="empty-em">🏗️</div><div class="empty-title">Noch keine Gebäude</div><div class="sub" style="margin-bottom:16px">Baue dein erstes Gebäude um Waren zu produzieren</div><button class="btn full" style="max-width:200px;margin:0 auto" onclick="G.bldSub=\'build\';renComp()">🏭 Gebäude bauen</button></div>';
     render(unsafeHTML(h), el);return;
   }
-  bs.forEach(b=>{h+='<div class="crd" class="mb6b">'+renderBldDetail(b,c.id,true)+'</div>'});}
-    else h+='<div class="empty-hint" onclick="bldSub=\'build\';renComp()"><div class="eh-em">🏭</div><div class="eh-title">Noch keine Gebäude</div><div class="eh-sub">Baue Fabriken um automatisch Waren zu produzieren</div><div style="margin-top:8px"><button class="btn sm" class="btn-solid-green">🏗️ Jetzt bauen →</button></div></div>';
+  bs.forEach(b=>{h+='<div class="crd mb6b">'+renderBldDetail(b,c.id,true)+'</div>'});}
+    else h+='<div class="empty-hint" onclick="bldSub=\'build\';renComp()"><div class="eh-em">🏭</div><div class="eh-title">Noch keine Gebäude</div><div class="eh-sub">Baue Fabriken um automatisch Waren zu produzieren</div><div style="margin-top:8px"><button class="btn sm btn-solid-green">🏗️ Jetzt bauen →</button></div></div>';
   }
 
   // ── SUB: BUILD ──
@@ -11921,7 +11924,7 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
       Object.entries(bCount).forEach(([t,n])=>{const d=BLD[t];if(d)h+='<span class="tg g">'+d.em+' '+d.name+(n>1?' ×'+n:'')+'</span>'});
       h+='</div></div>';
     } else {
-      h+='<div class="crd" class="mb8b"><div class="sub" class="t-center">Noch keine Gebäude · Plätze: 0/'+maxB+'</div></div>';
+      h+='<div class="crd mb8b"><div class="sub t-center">Noch keine Gebäude · Plätze: 0/'+maxB+'</div></div>';
     }
     // Global building overview grouped by region (collapsed)
     const totalBlds=Object.values(G.blds).flat().length;
@@ -11984,18 +11987,18 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
         if(lockedLvlHere.length){const byLvl={};lockedLvlHere.forEach(([k,d])=>{const l=d.lvl;if(!byLvl[l])byLvl[l]=[];byLvl[l].push([k,d])});
           Object.entries(byLvl).sort((a,b)=>a[0]-b[0]).forEach(([l,items2])=>{const li=LEVELS[l-1];
             h+='<div class="sec-label" style="opacity:.6;font-size:11px">Ab Level '+l+' – '+li.em+' '+li.name+'</div><div class="bgr">';
-            items2.forEach(([k,d])=>{h+='<div class="bb off" style="opacity:.4"><div class="e">'+d.em+'</div><div>'+d.name+'</div><div class="sub" class="c-muted">'+d.desc+'</div><div class="p" style="opacity:.5">'+fmt(d.price)+'</div></div>'});
+            items2.forEach(([k,d])=>{h+='<div class="bb off" style="opacity:.4"><div class="e">'+d.em+'</div><div>'+d.name+'</div><div class="sub c-muted">'+d.desc+'</div><div class="p" style="opacity:.5">'+fmt(d.price)+'</div></div>'});
             h+='</div>'});}
         if(lockedLvlOther.length){const byLvl2={};lockedLvlOther.forEach(([k,d])=>{const l=d.lvl;if(!byLvl2[l])byLvl2[l]=[];byLvl2[l].push([k,d])});
           Object.entries(byLvl2).sort((a,b)=>a[0]-b[0]).forEach(([l,items2])=>{
             h+='<div class="sec-label" style="opacity:.4;font-size:11px">Level '+l+' · andere Region</div><div class="bgr">';
-            items2.forEach(([k,d])=>{h+='<div class="bb off" style="opacity:.25"><div class="e">'+d.em+'</div><div>'+d.name+'</div><div class="sub" class="c-muted">'+d.desc+'</div></div>'});
+            items2.forEach(([k,d])=>{h+='<div class="bb off" style="opacity:.25"><div class="e">'+d.em+'</div><div>'+d.name+'</div><div class="sub c-muted">'+d.desc+'</div></div>'});
             h+='</div>'});}
         if(lockedRegionOnly.length){h+='<div class="sec-label" style="opacity:.5;font-size:11px">🌍 Nicht in dieser Region</div><div class="bgr">';
-          lockedRegionOnly.forEach(([k,d])=>{h+='<div class="bb off" style="opacity:.3"><div class="e">'+d.em+'</div><div>'+d.name+'</div><div class="sub" class="c-muted">'+d.desc+'</div></div>'});
+          lockedRegionOnly.forEach(([k,d])=>{h+='<div class="bb off" style="opacity:.3"><div class="e">'+d.em+'</div><div>'+d.name+'</div><div class="sub c-muted">'+d.desc+'</div></div>'});
           h+='</div>';}
         h+='</details>';}
-    } else h+='<div class="sub" class="center-p12">🏗️ Maximum erreicht ('+maxB+'/'+maxB+')</div>';
+    } else h+='<div class="sub center-p12">🏗️ Maximum erreicht ('+maxB+'/'+maxB+')</div>';
   }
 
   // Close city (always visible at bottom)
@@ -12053,7 +12056,7 @@ function renderBldDetail(b,cid,showUpgrades){const d=BLD[b.type];if(!d)return'';
     if(lF2&&(b.overflow!=='city'||cF2)){costMult=0.5;costLabel='voll'}
   }
   const hourCost=Math.round(baseCostH*costMult);
-  h+='<div class="sub" class="flex-sb"><span>💰 '+hourCost+'€/h'+(costMult<1?' <span style="color:'+(costMult<=0.1?'var(--a)':'var(--go)')+'">('+(costMult*100)+'% — '+costLabel+')</span>':'')+'</span></div>';
+  h+='<div class="sub flex-sb"><span>💰 '+hourCost+'€/h'+(costMult<1?' <span style="color:'+(costMult<=0.1?'var(--a)':'var(--go)')+'">('+(costMult*100)+'% — '+costLabel+')</span>':'')+'</span></div>';
   // Storage building info
   // Hub building (Verteilerzentrum): combined storage + depot
   if(d.tp==='hub'){
@@ -12089,7 +12092,7 @@ function renderBldDetail(b,cid,showUpgrades){const d=BLD[b.type];if(!d)return'';
     const ulvl=bUp(b,'depot_cap')||0;const totalSlots=d.depotSlots+ulvl*2;
     const totalDepot=depotCap(cid);const usedSlots=G.vehs.filter(v=>(v.depot||v.loc)===cid).length;
     h+='<div class="sub">🚛 Stellplätze +'+totalSlots+(ulvl?' (Stufe '+(ulvl+1)+'/6)':' (upgradbar)')+'</div>';
-    h+='<div class="sub" class="c-muted">Gesamt am Standort: '+usedSlots+'/'+totalDepot+' belegt</div>';
+    h+='<div class="sub c-muted">Gesamt am Standort: '+usedSlots+'/'+totalDepot+' belegt</div>';
     if(showUpgrades&&tracks.length){h+='<div class="section-divider">';
       tracks.forEach(track=>{const ud=UPGRADES[track],ulvl2=bUp(b,track),mx=ud.max,cost=ulvl2<mx?upCost(track,ulvl2):0;
         h+='<div class="up-row"><span class="up-icon">'+ud.em+'</span><span class="up-name">'+ud.name+'</span><span class="up-pips">';
@@ -12105,10 +12108,10 @@ function renderBldDetail(b,cid,showUpgrades){const d=BLD[b.type];if(!d)return'';
     const evInfo=[];
     const gm=eventEffect('globalMult');if(gm&&gm!==1)evInfo.push('Marktpreis ×'+gm);
     const gb=eventEffect('goodBonus');if(gb&&gb[d.prod])evInfo.push((GOODS[d.prod]?.name||'')+' ×'+gb[d.prod]);
-    if(evInfo.length)h+='<div class="sub" class="c-amber">⚡ Event: '+evInfo.join(', ')+'</div>';
+    if(evInfo.length)h+='<div class="sub c-amber">⚡ Event: '+evInfo.join(', ')+'</div>';
   }
   else if(d.tp==='farm'){const interval=bldTickInterval(b);const tA=b.animals?sumObj(b.animals):0;const gOff=b.grainOff;const gPct=gOff?0:Math.round((1-tA/30)*100);const gAmt=gOff?0:Math.round(d.rate*(bUp(b,'prod_out')+1)*(eventEffect('farmMult')||1)*gPct/100);h+='<div class="sub">'+(gOff?'🌾 Getreide: AUS':'🌾 '+gAmt+'× '+(GOODS[d.prod]?.name||'Getreide')+' ('+gPct+'%)')+' alle '+ftime(interval)+(tA?' · 🐄 '+tA+' Tiere':'')+'</div>';
-    const fm=eventEffect('farmMult');if(fm&&fm!==1)h+='<div class="sub" class="c-amber">⚡ Event: Farmproduktion ×'+fm+'</div>';
+    const fm=eventEffect('farmMult');if(fm&&fm!==1)h+='<div class="sub c-amber">⚡ Event: Farmproduktion ×'+fm+'</div>';
   }
   
   // Recipe
@@ -12117,7 +12120,7 @@ function renderBldDetail(b,cid,showUpgrades){const d=BLD[b.type];if(!d)return'';
     const weights=b.recipeWeights||{};
     const totalW=active.reduce((s,rid)=>s+(weights[rid]||100),0)||1;
     h+='<div style="margin:4px 0;padding-top:4px;border-top:1px solid var(--bd)">';
-    h+='<div class="rw"><span class="sub" class="fw6">Rezepte (Zyklus: '+ftime(interval)+')</span><span class="sub">'+active.length+'/'+pool.length+' aktiv</span></div>';
+    h+='<div class="rw"><span class="sub fw6">Rezepte (Zyklus: '+ftime(interval)+')</span><span class="sub">'+active.length+'/'+pool.length+' aktiv</span></div>';
     pool.forEach(r=>{const isOn=active.includes(r.id);
       const effM=[1,.8,.65,.5];const eff=effM[bUp(b,'fac_eff')]||1;
       const outMult=bUp(b,'fac_out')+1;
@@ -12156,7 +12159,7 @@ function renderBldDetail(b,cid,showUpgrades){const d=BLD[b.type];if(!d)return'';
       h+='<div class="sub" style="margin-top:2px">'+(grainPct>=100?'Maximale Getreideproduktion':grainPct>0?'Mehr Tiere = weniger Getreide':'Kein Getreide — alle Flächen für Tiere')+'</div>';}
     else h+=sub('Getreideproduktion deaktiviert — mehr Platz für Tiere','margin-top:2px;color:var(--r)');
     h+='</div>';
-    h+='<div class="rw"><span class="sub" class="fw6">Tierhaltung</span><span class="sub">Zyklus: '+ftime(interval)+'</span></div>';
+    h+='<div class="rw"><span class="sub fw6">Tierhaltung</span><span class="sub">Zyklus: '+ftime(interval)+'</span></div>';
     if(totalA){Object.entries(animals).filter(([,c2])=>c2>0).forEach(([aKey,cnt])=>{const a=ANIMALS[aKey];if(!a)return;
       h+='<div class="crd" style="padding:4px 8px;margin:3px 0"><div class="rw"><span style="font-size:11px">'+a.em+' '+a.name+' ×'+cnt+'/'+maxPerType+'</span>';
       h+='<button class="btn red sm" onclick="sellAnimal(\''+cid+'\',\''+b.id+'\',\''+aKey+'\')">−1 ('+fmt(Math.floor(a.price*0.4))+')</button></div>';
@@ -12172,7 +12175,7 @@ function renderBldDetail(b,cid,showUpgrades){const d=BLD[b.type];if(!d)return'';
   if(d.tp==='orchard'){const fruits=b.fruits||{};const interval=bldTickInterval(b);const totalF=sumObj(fruits);
     const MAX_PER_TYPE=8,MAX_TOTAL=20;
     h+='<div class="section-divider">';
-    h+='<div class="rw"><span class="sub" class="fw6">🌳 Obstanbau · '+totalF+'/'+MAX_TOTAL+' Bäume</span><span class="sub">Zyklus: '+ftime(interval)+'</span></div>';
+    h+='<div class="rw"><span class="sub fw6">🌳 Obstanbau · '+totalF+'/'+MAX_TOTAL+' Bäume</span><span class="sub">Zyklus: '+ftime(interval)+'</span></div>';
     if(totalF){Object.entries(fruits).filter(([,c2])=>c2>0).forEach(([fKey,cnt])=>{const fr=FRUITS[fKey];if(!fr)return;
       const amt=d.rate*cnt*(bUp(b,'prod_out')+1);
       h+='<div class="crd" style="padding:4px 8px;margin:3px 0"><div class="rw"><span style="font-size:11px">'+fr.em+' '+fr.name+' ×'+cnt+(cnt>=MAX_PER_TYPE?' <span style="color:var(--go);font-size:9px">MAX</span>':'')+'</span>';
@@ -12261,7 +12264,7 @@ function _showChainWizard(cid){
       h+='<div class="rw"><span>'+ch.bld.em+' <b>'+ch.bld.name+'</b></span><span style="font-family:var(--mono);color:#a855f7">'+fmt(ch.bld.price)+'</span></div>';
       h+='<div class="sub">'+(gIn?.em||'')+' '+gIn?.name+' ('+stockAmt+'× vorrätig) → '+(gOut?.em||'')+' '+gOut?.name+'</div>';
       if(lowStock)h+=sub('⚠️ Wenig Rohstoff — Produktion könnte stocken','color:var(--go)');
-      if(ch.recipe?.in2){const s2=_cityStock(cid,ch.recipe.in2);h+='<div class="sub" class="c-amber">⚠️ Braucht auch: '+(GOODS[ch.recipe.in2]?.em||'')+' '+(GOODS[ch.recipe.in2]?.name||ch.recipe.in2)+' ('+s2+'× vorrätig)</div>'}
+      if(ch.recipe?.in2){const s2=_cityStock(cid,ch.recipe.in2);h+='<div class="sub c-amber">⚠️ Braucht auch: '+(GOODS[ch.recipe.in2]?.em||'')+' '+(GOODS[ch.recipe.in2]?.name||ch.recipe.in2)+' ('+s2+'× vorrätig)</div>'}
       h+='<button class="btn sm" style="margin-top:4px;'+(canAfford&&hasSpace?'background:rgba(168,85,247,.1);color:#a855f7;border-color:rgba(168,85,247,.3)':'opacity:.4')+'" onclick="'+(canAfford&&hasSpace?"bld('"+cid+"','"+ch.building+"');closePopup('chainWizPopup')":"")+'">'+(!hasSpace?'⛔ Kein Platz':(!canAfford?'❌ '+fmt(ch.bld.price)+' nötig':'🏗️ Jetzt bauen'))+'</button>';
       h+='</div>';
     });
@@ -12287,7 +12290,7 @@ function _showChainWizard(cid){
 
   if(!produces.size&&!chains.length)h+=sub('Baue zuerst ein Produktionsgebäude!','text-align:center;padding:16px');
 
-  h+='<button class="btn full" class="mt12b" onclick="closePopup(\'chainWizPopup\')">Schließen</button>';
+  h+='<button class="btn full mt12b" onclick="closePopup(\'chainWizPopup\')">Schließen</button>';
   createPopup('chainWizPopup',h,{maxWidth:'560px',zIndex:'9999'});
 }
 const PROFILE_AVATARS=['🏭','🚛','📦','💎','🏗️','⚡','🌍','🚀','👑','🔥','🦅','🐉','💰','🏆','⭐','🎯','🛡️','⚔️','🎩','🌊'];
@@ -12339,7 +12342,7 @@ async function showProfile(viewUser){
           achievements:[],achCount:d.achievements||0,money:d.money||d.value||0,ally:d.ally||''};
       }
     }catch(e){}
-    if(!data){createPopup('profilePopup','<div class="sub" class="center-pad20">Spieler nicht gefunden</div><button class="btn full" onclick="closePopup(\'profilePopup\')">Schließen</button>');return}
+    if(!data){createPopup('profilePopup','<div class="sub center-pad20">Spieler nicht gefunden</div><button class="btn full" onclick="closePopup(\'profilePopup\')">Schließen</button>');return}
   }
 
   const clr=sanitizeColor(data.color);
@@ -12602,7 +12605,7 @@ async function showLeaderboard(){
       h+='<span class="mono-purple-bold">'+fmt(allianceValue(a))+'</span></div>';
       h+='<div class="sub">Lvl '+a.level+' '+sanitize(lv?.name||'')+' · 👥'+a.members.length+' · 🏴'+a.territories.length+' · 🏭'+a.buildings.length+'</div></div>'});
   }
-  h+='<button class="btn full" class="mt12b" onclick="closePopup(\'lbPopup\')">Schließen</button>';
+  h+='<button class="btn full mt12b" onclick="closePopup(\'lbPopup\')">Schließen</button>';
   createPopup('lbPopup',h,{maxWidth:'560px'});
 }
 
@@ -12656,18 +12659,18 @@ function showAchievements(){
   // Unlocked
   const done2=all.filter(a=>a.done);
   const locked=all.filter(a=>!a.done);
-  if(done2.length){h+='<div class="sec-label" class="c-amber">✅ Freigeschaltet · '+done2.length+'</div>';
+  if(done2.length){h+='<div class="sec-label c-amber">✅ Freigeschaltet · '+done2.length+'</div>';
     done2.forEach(a=>{
       h+='<div class="crd" style="padding:6px 10px;border-color:rgba(251,191,36,.15);background:rgba(251,191,36,.03);margin-bottom:4px">';
       h+='<div class="rw"><span style="font-size:14px">'+a.em+' <b>'+a.name+'</b></span><span class="tg g" style="font-size:10px">✅</span></div>';
       h+='<div class="sub">'+a.desc+'</div></div>'});}
-  if(locked.length){h+='<div class="sec-label" class="c-muted">🔒 Gesperrt · '+locked.length+'</div>';
+  if(locked.length){h+='<div class="sec-label c-muted">🔒 Gesperrt · '+locked.length+'</div>';
     locked.forEach(a=>{
       h+='<div class="crd" style="padding:6px 10px;opacity:.5;margin-bottom:4px">';
       h+='<div class="rw"><span style="font-size:14px">'+a.em+' <b>'+a.name+'</b></span><span class="tg" style="font-size:10px">🔒</span></div>';
       h+='<div class="sub">'+a.desc+'</div></div>'});}
 
-  h+='<button class="btn full" class="mt12b" onclick="closePopup(\'achPopup\')">Schließen</button>';
+  h+='<button class="btn full mt12b" onclick="closePopup(\'achPopup\')">Schließen</button>';
   createPopup('achPopup',h,{maxWidth:'500px'});
 }
 // ═══ WIKI ═══
@@ -13182,7 +13185,7 @@ function _renderChains(el){
   const tierBrd={roh:'rgba(61,214,140,.4)',verarb:'rgba(56,189,248,.4)',luxus:'rgba(168,85,247,.4)'};
   // Check what player has built
   const myBlds=new Set();Object.values(G.blds||{}).flat().forEach(b=>{const d=BLD[b.type];if(d)myBlds.add(d.name)});
-  let h='<div class="wk-desc" class="mb12b">Deine Gebäude sind <b style="color:var(--a)">grün markiert</b>. Fehlende Stufen sind ausgegraut.</div>';
+  let h='<div class="wk-desc mb12b">Deine Gebäude sind <b style="color:var(--a)">grün markiert</b>. Fehlende Stufen sind ausgegraut.</div>';
   chains.forEach(chain=>{
     h+='<div style="margin-bottom:14px"><div style="font-weight:700;font-size:13px;margin-bottom:6px">'+chain.name+'</div>';
     h+='<div style="display:flex;gap:0;align-items:center;flex-wrap:wrap">';
@@ -13251,11 +13254,11 @@ async function compAlliance(){
     // Check invites
     const invites=list.filter(a2=>a2.invites&&a2.invites.includes(currentUser));
     if(invites.length){lh+=secLabel('📨 Einladungen','color:var(--a)');
-      invites.forEach(a2=>{lh+='<div class="crd success" class="p6-10"><div class="rw"><span>['+sanitize(a2.tag)+'] '+sanitize(a2.name)+'</span><button class="btn sm" onclick="acceptInvite(\''+a2.id+'\')">✅ Annehmen</button></div></div>'});}
+      invites.forEach(a2=>{lh+='<div class="crd success p6-10"><div class="rw"><span>['+sanitize(a2.tag)+'] '+sanitize(a2.name)+'</span><button class="btn sm" onclick="acceptInvite(\''+a2.id+'\')">✅ Annehmen</button></div></div>'});}
     // Check pending
     const pending=list.filter(a2=>a2.applications&&a2.applications.find(x=>x.user===currentUser));
     if(pending.length){lh+=secLabel('⏳ Ausstehende Bewerbungen','color:var(--go)');
-      pending.forEach(a2=>{lh+='<div class="crd warn" style="padding:5px 10px"><div class="rw"><span>['+sanitize(a2.tag)+'] '+sanitize(a2.name)+'</span><span class="tg" class="c-amber">⏳</span></div></div>'});}
+      pending.forEach(a2=>{lh+='<div class="crd warn" style="padding:5px 10px"><div class="rw"><span>['+sanitize(a2.tag)+'] '+sanitize(a2.name)+'</span><span class="tg c-amber">⏳</span></div></div>'});}
     list.forEach(a=>{const lv=ALLIANCE_LEVELS[a.level-1];
       lh+='<div class="crd"><div class="rw"><span class="fw6">['+sanitize(a.tag)+'] '+sanitize(a.name)+'</span>';
       lh+='<button class="btn sm" onclick="joinAlliance(\''+a.id+'\')">📨 Bewerben</button></div>';
@@ -13264,7 +13267,7 @@ async function compAlliance(){
   }
 
   const a=await getAlliance(G.alliance);
-  if(!a){G.alliance=null;el.innerHTML='<div class="sub" class="center-p20">Allianz nicht gefunden</div>';return}
+  if(!a){G.alliance=null;el.innerHTML='<div class="sub center-p20">Allianz nicht gefunden</div>';return}
   const lv=ALLIANCE_LEVELS[a.level-1];const isL=a.leader===currentUser;
   const storUsed=typeof allyStorageUsed==='function'?allyStorageUsed(a):0;
   const storCap=typeof allyStorageCap==='function'?allyStorageCap(a):500;
@@ -13309,9 +13312,9 @@ async function compAlliance(){
     // Territory income info
     if(a.territories.length){
       const incomePerH=a.territories.reduce((s,tK)=>{const t=TERRITORIES[tK];return s+(t?Math.round(t.fee*0.6):0)},0);
-      h+='<div class="crd info" class="p6-10-11">💡 Gebiete generieren ~<b>'+fmt(incomePerH)+'€/h</b> passiv · Gebäude produzieren + verkaufen automatisch</div>';
+      h+='<div class="crd info p6-10-11">💡 Gebiete generieren ~<b>'+fmt(incomePerH)+'€/h</b> passiv · Gebäude produzieren + verkaufen automatisch</div>';
     } else {
-      h+='<div class="crd warn" class="p6-10-11">💡 Beanspruche Gebiete um dort Gebäude zu bauen!</div>';
+      h+='<div class="crd warn p6-10-11">💡 Beanspruche Gebiete um dort Gebäude zu bauen!</div>';
     }
     h+='<div class="sec-label">👥 Mitglieder · '+a.members.length+'/'+lv.maxMembers+'</div>';
     a.members.forEach(m=>{const rl=ALLY_ROLES[m.role]||ALLY_ROLES.member;
@@ -13321,7 +13324,7 @@ async function compAlliance(){
       h+='</div></div></div>'});
     // Pending applications badge
     const pendCount=(a.applications||[]).length;
-    if(pendCount&&canDo(a,currentUser,"canInvite"))h+='<div class="sub" style="color:var(--go);margin-top:4px">📨 '+pendCount+' Bewerbung'+(pendCount>1?'en':'')+' offen — <button class="btn sm" class="crd-warn" onclick="setAllianceSub(\'manage\')">→ Management</button></div>';
+    if(pendCount&&canDo(a,currentUser,"canInvite"))h+='<div class="sub" style="color:var(--go);margin-top:4px">📨 '+pendCount+' Bewerbung'+(pendCount>1?'en':'')+' offen — <button class="btn sm crd-warn" onclick="setAllianceSub(\'manage\')">→ Management</button></div>';
     // Alliance log
     if(a.log&&a.log.length){
       h+=secLabel('📋 Letzte Aktivitäten','margin-top:8px');
@@ -13435,7 +13438,7 @@ async function compAlliance(){
     // Invite
     h+=secLabel('📨 Spieler einladen','margin-top:8px');
     h+='<div class="flex-gap4"><input id="allyInvUser2" class="auth-input" placeholder="Spielername" style="flex:1" onfocus="renderBlocked=true" onblur="renderBlocked=false"/>';
-    h+='<button class="btn sm" class="crd-purple-outline" onclick="inviteToAlliance(document.getElementById(\'allyInvUser2\').value)">📨 Einladen</button></div>';
+    h+='<button class="btn sm crd-purple-outline" onclick="inviteToAlliance(document.getElementById(\'allyInvUser2\').value)">📨 Einladen</button></div>';
     // Pending invites
     if(a.invites&&a.invites.length){h+='<div class="sub" style="margin-top:6px">Offene Einladungen: '+a.invites.join(', ')+'</div>';}
     // Roles legend
@@ -13461,7 +13464,7 @@ async function compAlliance(){
     const mk=await getAllianceMarket();
     const ours=mk.filter(r=>r.allianceId===a.id);
     h+=secLabel('🛒 Ressourcen-Einkauf');
-    h+='<div class="sub" class="mb6b">Kaufanfragen erstellen, die alle Spieler im Markt-Tab sehen und erfüllen können. Geld wird aus der <b>Allianzkasse</b> reserviert.</div>';
+    h+='<div class="sub mb6b">Kaufanfragen erstellen, die alle Spieler im Markt-Tab sehen und erfüllen können. Geld wird aus der <b>Allianzkasse</b> reserviert.</div>';
     // Active requests
     if(ours.length){h+='<div class="sec-label" style="margin-top:4px">📋 Aktive Anfragen · '+ours.length+'</div>';
       ours.forEach(r=>{const gd=GOODS[r.good];const pct=r.filled/r.amt;
@@ -13477,18 +13480,18 @@ async function compAlliance(){
       h+='<div class="crd" style="padding:8px">';
       // Good selector
       h+=sub('Ware wählen:','margin-bottom:3px;font-weight:600');
-      h+='<select id="allyReqGood" class="sl" class="mb6b" onchange="updAllyReqPrice()" onfocus="renderBlocked=true" onblur="renderBlocked=false">';
+      h+='<select id="allyReqGood" class="sl mb6b" onchange="updAllyReqPrice()" onfocus="renderBlocked=true" onblur="renderBlocked=false">';
       h+='<option value="">— Ware wählen —</option>';
       const allGoods=Object.entries(GOODS).filter(([k])=>!ALLIANCE_GOODS[k]).sort((a2,b)=>(b[1].bp||0)-(a2[1].bp||0));
       allGoods.forEach(([k,g])=>{h+='<option value="'+k+'">'+(g.em||'')+' '+g.name+' (Markt: ~'+fmt(g.bp||BASE_PRICES[k]||100)+')</option>'});
       h+='</select>';
       // Amount + price
       h+='<div style="display:flex;gap:6px;margin-bottom:6px">';
-      h+='<div style="flex:1"><div class="sub" class="mb2">Menge</div><input id="allyReqAmt" type="number" min="1" value="10" class="auth-input" oninput="updAllyReqPrice()" onfocus="renderBlocked=true" onblur="renderBlocked=false"/></div>';
-      h+='<div style="flex:1"><div class="sub" class="mb2">Preis/Stück</div><input id="allyReqPpu" type="number" min="1" value="100" class="auth-input" oninput="updAllyReqPrice()" onfocus="renderBlocked=true" onblur="renderBlocked=false"/></div>';
+      h+='<div style="flex:1"><div class="sub mb2">Menge</div><input id="allyReqAmt" type="number" min="1" value="10" class="auth-input" oninput="updAllyReqPrice()" onfocus="renderBlocked=true" onblur="renderBlocked=false"/></div>';
+      h+='<div style="flex:1"><div class="sub mb2">Preis/Stück</div><input id="allyReqPpu" type="number" min="1" value="100" class="auth-input" oninput="updAllyReqPrice()" onfocus="renderBlocked=true" onblur="renderBlocked=false"/></div>';
       h+='</div>';
-      h+='<div id="allyReqCalc" class="sub" class="mb6b"></div>';
-      h+='<button class="btn full" class="btn-purple" onclick="const g=document.getElementById(\'allyReqGood\').value,a2=parseInt(document.getElementById(\'allyReqAmt\').value,10),p=parseInt(document.getElementById(\'allyReqPpu\').value,10);postAllianceRequest(g,a2,p)">🛒 Kaufanfrage erstellen</button>';
+      h+='<div id="allyReqCalc" class="sub mb6b"></div>';
+      h+='<button class="btn full btn-purple" onclick="const g=document.getElementById(\'allyReqGood\').value,a2=parseInt(document.getElementById(\'allyReqAmt\').value,10),p=parseInt(document.getElementById(\'allyReqPpu\').value,10);postAllianceRequest(g,a2,p)">🛒 Kaufanfrage erstellen</button>';
       h+='</div>';
     }
   }
@@ -13500,7 +13503,7 @@ async function compAlliance(){
     if(a.territories.length){
       const weeklyRent=a.territories.reduce((s,tK)=>{const t=TERRITORIES[tK];return s+(t?t.fee*2:0)},0);
       const nextMult=1+a.territories.length*0.15;
-      h+='<div class="crd info" class="p6-10-11"><div class="rw"><span>💰 Wöchentliche Miete: <b>'+fmt(weeklyRent)+'</b></span><span>Nächstes Gebiet: <b>×'+nextMult.toFixed(2)+'</b> Preis</span></div></div>';
+      h+='<div class="crd info p6-10-11"><div class="rw"><span>💰 Wöchentliche Miete: <b>'+fmt(weeklyRent)+'</b></span><span>Nächstes Gebiet: <b>×'+nextMult.toFixed(2)+'</b> Preis</span></div></div>';
     }
     if(!a.territories.length)h+=sub('Keine Gebiete — beanspruche unten','padding:8px;text-align:center');
     a.territories.forEach(tK=>{const t=TERRITORIES[tK];if(!t)return;const ti=tr[tK];
@@ -13508,7 +13511,7 @@ async function compAlliance(){
       const bldsInTerr=a.buildings.filter(b=>{const tc=getCitiesInTerritory(tK);return tc.find(c=>c.name===b.cityName)});
       h+='<div class="crd'+(daysLeft<2?' alert':'')+'"><div class="rw"><span>'+t.em+' <b>'+t.countryName+'</b> · '+t.name+'</span><span style="font-size:10px;color:'+(daysLeft<2?'var(--r)':'var(--td)')+'">Miete: '+fmt(t.fee*2)+'/Wo · '+(daysLeft<2?'⚠️ ':'')+daysLeft+' Tage übrig</span></div>';
       if(bldsInTerr.length)h+='<div class="sub">🏭 '+bldsInTerr.length+' Gebäude: '+bldsInTerr.map(b=>(ALLIANCE_BUILDINGS[b.type]?.em||'')+' '+(b.cityName||'')).join(', ')+'</div>';
-      if(canDo(a,currentUser,'canClaim'))h+='<button class="btn sm" class="c-td-10" onclick="if(confirm(\'Gebiet auf der Börse anbieten?'+(bldsInTerr.length?' ⚠️ ACHTUNG: '+bldsInTerr.length+' Gebäude in diesem Gebiet gehen beim Verkauf verloren!':'')+' Preis eingeben:\')){const p=prompt(\'Verkaufspreis in €:\');if(p&&parseInt(p,10)>0)listTerritoryForSale(\''+tK+'\',parseInt(p,10))}">📋 Auf Börse anbieten</button>';
+      if(canDo(a,currentUser,'canClaim'))h+='<button class="btn sm c-td-10" onclick="if(confirm(\'Gebiet auf der Börse anbieten?'+(bldsInTerr.length?' ⚠️ ACHTUNG: '+bldsInTerr.length+' Gebäude in diesem Gebiet gehen beim Verkauf verloren!':'')+' Preis eingeben:\')){const p=prompt(\'Verkaufspreis in €:\');if(p&&parseInt(p,10)>0)listTerritoryForSale(\''+tK+'\',parseInt(p,10))}">📋 Auf Börse anbieten</button>';
       h+='</div>'});
     // By country (collapsible)
     Object.entries(COUNTRIES).forEach(([cc,co])=>{
@@ -13575,7 +13578,7 @@ async function compAlliance(){
     const agreements=a.agreements||[];
     if(!agreements.length)h+=sub('Keine aktiven Abkommen — als CEO anderen Allianzen Abkommen vorschlagen','text-align:center;padding:10px');
     agreements.forEach(ag=>{
-      h+='<div class="crd success" class="p8-10"><div class="rw"><span class="fw6">['+sanitize(ag.tag)+'] '+sanitize(ag.name)+'</span>';
+      h+='<div class="crd success p8-10"><div class="rw"><span class="fw6">['+sanitize(ag.tag)+'] '+sanitize(ag.name)+'</span>';
       h+='<span class="tg g" style="font-size:10px">✅ Aktiv seit '+new Date(ag.since).toLocaleDateString('de-DE')+'</span></div>';
       h+=sub('Mitglieder können Waren an diese Allianz liefern · +10% Bonus');
       if(isL)h+='<button class="btn red sm" style="margin-top:4px;font-size:10px" onclick="if(confirm(\'Handelsabkommen mit ['+sanitize(ag.tag)+'] '+sanitize(ag.name)+' auflösen?\'))cancelTradeAgreement(\''+ag.partner+'\')">❌ Kündigen</button>';
@@ -13585,7 +13588,7 @@ async function compAlliance(){
     if(pending.length){
       h+=secLabel('📨 Eingehende Anfragen','margin-top:8px;color:var(--go)');
       pending.forEach(p=>{
-        h+='<div class="crd warn" class="p8-10"><div class="rw"><span>['+sanitize(p.fromTag)+'] '+sanitize(p.fromName)+'</span>';
+        h+='<div class="crd warn p8-10"><div class="rw"><span>['+sanitize(p.fromTag)+'] '+sanitize(p.fromName)+'</span>';
         if(isL)h+='<div class="flex-gap4"><button class="btn sm" onclick="acceptTradeAgreement(\''+p.from+'\')">✅ Annehmen</button>';
         h+='<button class="btn red sm" onclick="(async()=>{const aa=await getAlliance(G.alliance);if(aa){aa.pendingAgreements=(aa.pendingAgreements||[]).filter(x=>x.from!==\''+p.from+'\');await saveAlliance(aa);renderAlliance()}})()">❌</button></div>';
         h+='</div></div>'});
@@ -13600,7 +13603,7 @@ async function compAlliance(){
         if(!others.length){render(unsafeHTML('<div class="sub">Keine anderen Allianzen verfügbar</div>'), el2);return}
         let dh='';others.forEach(o=>{
           dh+='<div class="crd" style="padding:5px 10px"><div class="rw"><span>['+sanitize(o.tag)+'] '+sanitize(o.name)+' · Lv'+o.level+' · 👥'+o.members.length+'</span>';
-          dh+='<button class="btn sm" class="crd-purple-outline" onclick="proposeTradeAgreement(\''+o.id+'\')">🤝 Vorschlagen</button></div></div>'});
+          dh+='<button class="btn sm crd-purple-outline" onclick="proposeTradeAgreement(\''+o.id+'\')">🤝 Vorschlagen</button></div></div>'});
         render(unsafeHTML(dh), el2);
       },100);
     }
@@ -13674,7 +13677,7 @@ function compVehiclesOverview(el){
   h+='<span class="tg">🚛 '+G.vehs.length+' gesamt</span>';
   h+='<span class="tg g">🟢 '+idle.length+' frei</span>';
   h+='<span class="tg y">📋 '+onOrder.length+' im Auftrag</span>';
-  if(onMarket.length)h+='<span class="tg" class="c-amber">💰 '+onMarket.length+' Markt/Allianz</span>';
+  if(onMarket.length)h+='<span class="tg c-amber">💰 '+onMarket.length+' Markt/Allianz</span>';
   if(returning.length)h+='<span class="tg">🔙 '+returning.length+' Rückweg</span>';
   h+='</div>';
 
@@ -13693,7 +13696,7 @@ function compVehiclesOverview(el){
   }
 
   if(onOrder.length){h+='<div class="sec-label">📋 Im Auftrag · '+onOrder.length+'</div>';onOrder.forEach(v=>{h+=vehRow(v)})}
-  if(onMarket.length){h+='<div class="sec-label" class="c-amber">💰 Markt & Allianz · '+onMarket.length+'</div>';onMarket.forEach(v=>{const isA=v.cargo?.allianceDelivery;h+=vehRow(v,'border-left:3px solid '+(isA?'#a855f7':'var(--go)'))})}
+  if(onMarket.length){h+='<div class="sec-label c-amber">💰 Markt & Allianz · '+onMarket.length+'</div>';onMarket.forEach(v=>{const isA=v.cargo?.allianceDelivery;h+=vehRow(v,'border-left:3px solid '+(isA?'#a855f7':'var(--go)'))})}
   if(returning.length){h+='<div class="sec-label">🔙 Rückweg · '+returning.length+'</div>';returning.forEach(v=>{h+=vehRow(v)})}
 
   if(idle.length){h+='<div class="sec-label">🟢 Frei · '+idle.length+'</div>';
@@ -14045,7 +14048,7 @@ async function renderAdmin(){
     h+='<button class="btn" onclick="adminSendAnnouncement()">📢 Senden</button></div>';
     h+='<div class="sub">Erscheint als Toast + Log bei allen Spielern beim nächsten Laden</div></div>';
     // Top players
-    h+='<div class="admin-section" class="mt12b">🏆 Top-Spieler</div>';
+    h+='<div class="admin-section mt12b">🏆 Top-Spieler</div>';
     const sorted=[...userKeys].sort((a,b)=>(saves[b]?.earned||0)-(saves[a]?.earned||0));
     h+='<div class="grid-2-6">';
     sorted.slice(0,8).forEach((k,i)=>{const sv=saves[k];const u=users[k];
@@ -14132,7 +14135,7 @@ async function renderAdmin(){
     h+='<button class="btn sm" onclick="adminFillStorage()">Auffüllen</button></div></div>';
     h+='<div class="crd"><div class="rw"><span>🗑️ Caches leeren</span>';
     h+='<button class="btn sec sm" onclick="adminClearCaches()">Leeren</button></div></div>';
-    h+='<div class="crd" class="p8-10"><div class="fw6 mb6">💰 Geld an alle Spieler senden</div>';
+    h+='<div class="crd p8-10"><div class="fw6 mb6">💰 Geld an alle Spieler senden</div>';
     h+='<div style="display:flex;gap:4px;margin-bottom:4px"><input type="number" class="sl" id="adminAllMoney" value="50000" style="width:100px"/>';
     h+='<button class="btn sm" onclick="adminGiveAllMoney()">An alle senden</button></div>';
     h+='<input type="text" class="sl" id="adminAllMsg" placeholder="💬 Nachricht (optional)" style="width:100%;font-size:11px"/></div>';
@@ -14154,10 +14157,10 @@ async function renderAdmin(){
     if(!evts.length)h+='<div class="sub" style="padding:8px">Keine aktiven Events</div>';
     evts.forEach(e=>{const def=EVENTS.find(x=>x.id===e.id);if(!def)return;
       const remTicks=e.endTick-(G?.tick||0);const remMin=Math.round(remTicks/60);
-      h+='<div class="crd success" class="p8-10"><div class="rw"><span>'+def.icon+' <b>'+def.name+'</b> — '+def.desc+'</span>';
+      h+='<div class="crd success p8-10"><div class="rw"><span>'+def.icon+' <b>'+def.name+'</b> — '+def.desc+'</span>';
       h+='<div class="flex-a4"><span class="tg g" style="font-size:10px">'+remMin+' min übrig</span>';
       h+='<button class="btn red sm" onclick="if(G&&G.events){G.events=G.events.filter(x=>x.id!==\''+e.id+'\');save();renderAdmin()}">⏹ Stoppen</button></div></div></div>'});
-    h+='<div class="admin-section" class="mt12b">🎮 Event manuell starten</div>';
+    h+='<div class="admin-section mt12b">🎮 Event manuell starten</div>';
     h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px">';
     EVENTS.forEach(ev=>{const isActive=evts.some(e=>e.id===ev.id);
       h+='<div class="crd'+(isActive?' off':'')+'" style="padding:6px 10px;cursor:'+(isActive?'default':'pointer')+'" '+(isActive?'':'onclick="if(G){G.events.push({id:\''+ev.id+'\',startTick:getTick(),endTick:G.tick+'+ev.dur+'});save();adminLog(\'admin\',\'🎲 Event gestartet: '+ev.name+'\');renderAdmin()}"')+'>';
@@ -14190,7 +14193,7 @@ async function renderAdmin(){
     h+='<div class="admin-body">';
     h+='<div class="admin-section">📊 Spieler-Feedback</div>';
     // Load feedback from shared storage
-    h+='<div id="adminFbContent"><div class="sub" class="center-pad20">Lade...</div></div>';
+    h+='<div id="adminFbContent"><div class="sub center-pad20">Lade...</div></div>';
     h+='</div>';
     // Async load
     setTimeout(async()=>{
@@ -14198,7 +14201,7 @@ async function renderAdmin(){
       try{
         const raw=await storeGet('lx_feedback',true);
         const all=raw?JSON.parse(raw):[];
-        if(!all.length){el.innerHTML='<div class="sub" class="center-pad20">Noch kein Feedback</div>';return}
+        if(!all.length){el.innerHTML='<div class="sub center-pad20">Noch kein Feedback</div>';return}
         // Aggregate by key
         const agg={};
         all.forEach(f=>{
@@ -14209,10 +14212,10 @@ async function renderAdmin(){
           if(f.val)agg[f.key].byLvl[lk].up++;else agg[f.key].byLvl[lk].down++;
         });
         const labels=typeof FB_LABELS!=='undefined'?FB_LABELS:{};
-        let fh='<div class="sub" class="mb8b">'+all.length+' Antworten gesamt</div>';
+        let fh='<div class="sub mb8b">'+all.length+' Antworten gesamt</div>';
         Object.entries(agg).forEach(([k,v])=>{
           const total=v.up+v.down;const pct=total?Math.round(v.up/total*100):0;
-          fh+='<div class="crd" class="mb6b"><div class="rw"><span class="fw6">'+(labels[k]||k)+'</span>';
+          fh+='<div class="crd mb6b"><div class="rw"><span class="fw6">'+(labels[k]||k)+'</span>';
           fh+='<span style="font-family:var(--mono);color:'+(pct>=60?'var(--a)':'var(--r)')+'">'+pct+'% 👍 ('+total+')</span></div>';
           fh+='<div class="pb" style="height:4px;margin:4px 0"><div class="pf" style="width:'+pct+'%;background:'+(pct>=60?'var(--a)':'var(--r)')+'"></div></div>';
           const lvls=Object.entries(v.byLvl).sort();
@@ -14433,7 +14436,7 @@ async function renderAdminPlayer(userKey,userData){
         h+='<div class="flex-sb-11">';
         h+='<span>'+vt.name+' · Kap: '+vehCap(v)+' · '+(v.km||0).toLocaleString('de-DE')+' km</span>';
         h+='<span>🏠 '+depotName+(v.loc!==v.depot?' · 📍 '+locName:'')+'</span></div>';
-        h+='<button class="btn sm" class="c-td-10" onclick="adminRecallVehFor(\''+userKey+'\',\''+v.id+'\')">🔙 Ins Depot ('+depotName+')</button>';
+        h+='<button class="btn sm c-td-10" onclick="adminRecallVehFor(\''+userKey+'\',\''+v.id+'\')">🔙 Ins Depot ('+depotName+')</button>';
         h+='</div>'});
     }
   }
@@ -14441,15 +14444,15 @@ async function renderAdminPlayer(userKey,userData){
   // ── Admin actions for this player ──
   h+='<div class="sec-label" style="margin-top:8px">⚙️ Aktionen</div>';
   h+='<div class="flex-col-6">';
-  h+='<div class="crd" class="p6-10"><div class="flex-sb-4"><span>💰 Geld senden</span>';
+  h+='<div class="crd p6-10"><div class="flex-sb-4"><span>💰 Geld senden</span>';
   h+='<div class="flex-gap4"><input type="number" class="sl" id="adminPlayerMoney" value="50000" style="width:90px"/>';
   h+='<button class="btn sm" data-user="'+sanitize(userKey)+'" onclick="adminGivePlayerMoney(this.dataset.user)">Senden</button></div></div>';
   h+='<input type="text" class="sl" id="adminPlayerMsg" placeholder="💬 Nachricht (optional)" style="width:100%;font-size:11px;margin-top:2px"/></div>';
   if(save.vehs?.some(v=>v.st==='moving')){
-    h+='<div class="crd" class="p6-10"><div class="rw"><span>🔙 Alle Fahrzeuge ins Depot</span>';
-    h+='<button class="btn sm" class="crd-warn" data-user="'+sanitize(userKey)+'" onclick="adminRecallAllVehs(this.dataset.user)">Alle zurücksetzen</button></div></div>';
+    h+='<div class="crd p6-10"><div class="rw"><span>🔙 Alle Fahrzeuge ins Depot</span>';
+    h+='<button class="btn sm crd-warn" data-user="'+sanitize(userKey)+'" onclick="adminRecallAllVehs(this.dataset.user)">Alle zurücksetzen</button></div></div>';
   }
-  h+='<div class="crd" class="p6-10"><div class="rw"><span>🔧 Spielstand reparieren</span>';
+  h+='<div class="crd p6-10"><div class="rw"><span>🔧 Spielstand reparieren</span>';
   h+='<button class="btn sm" data-user="'+sanitize(userKey)+'" onclick="adminRepairSave(this.dataset.user)">NaN/Fehler fixen</button></div></div>';
   h+='</div>';
 
