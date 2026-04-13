@@ -1242,7 +1242,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </div>
 
-<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build XGTU0J</div>
+<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build XIFQTL</div>
 <script>(function(){
   if(window.storage) return;
   const BASE='/api/storage';
@@ -1250,7 +1250,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   async function req(method,p,body){
     if(Date.now()<_backoff)return null;
     const opts={method,headers:{'Content-Type':'application/json'}};
-    if(window._lxSessionToken)opts.headers['X-Session']=window._lxSessionToken;
+    if(window._lxSessionToken)opts.headers['Authorization']='Bearer '+window._lxSessionToken;
     if(body)opts.body=JSON.stringify(body);
     const r=await fetch(BASE+p,opts);
     if(r.status===404)return null;

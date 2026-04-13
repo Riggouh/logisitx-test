@@ -1,5 +1,5 @@
-// LogistiX — Build XGTU0J — 2026-04-13 17:27
-window.BUILD_NUM='XGTU0J';
+// LogistiX — Build XIFQTL — 2026-04-13 18:12
+window.BUILD_NUM='XIFQTL';
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1445,7 +1445,7 @@ function _setToken(t){_sessionToken=t;window._lxSessionToken=t;try{sessionStorag
 
 function _headers(){
   const h={'Content-Type':'application/json'};
-  if(_sessionToken)h['X-Session']=_sessionToken;
+  if(_sessionToken)h['Authorization']='Bearer '+_sessionToken;
   return h;
 }
 

@@ -120,7 +120,7 @@ function createSession(user){
   return token;
 }
 function getSession(req){
-  const token=req.headers['x-session']||'';
+  const ah=req.headers['authorization']||'';const token=ah.startsWith('Bearer ')?ah.slice(7):(req.headers['x-session']||'');
   const s=sessions[token];
   if(!s)return null;
   if(Date.now()-s.ts>SESSION_TTL){delete sessions[token];return null}
@@ -235,7 +235,7 @@ function setHeaders(req,res){
   if(CORS_ORIGIN==='*')res.setHeader('Access-Control-Allow-Origin','*');
   else{const a=CORS_ORIGIN.split(',').map(s=>s.trim());if(a.includes(origin)){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin')}}
   res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type,X-Session');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-Session');
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('X-Frame-Options','SAMEORIGIN');
   res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
@@ -492,7 +492,7 @@ function handleStorage(req,res){
       const sessionUser=getSession(req);
       const writeErr=checkWriteAccess(key,sessionUser);
       if(writeErr){
-        const hdr=req.headers['x-session']||'(none)';
+        const hdr=req.headers['authorization']||req.headers['x-session']||'(none)';
         console.log('🚫 STORAGE 403:',key,'| session:',sessionUser,'| header:',hdr.substring(0,12)+'...','| reason:',writeErr,'| sessions:',Object.keys(sessions).length);
         res.statusCode=403;res.end(JSON.stringify({error:writeErr}));return
       }
