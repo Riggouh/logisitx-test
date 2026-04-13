@@ -1,5 +1,5 @@
-// LogistiX — Build XIFQTL — 2026-04-13 18:12
-window.BUILD_NUM='XIFQTL';
+// LogistiX — Build XIZB3Z — 2026-04-13 18:27
+window.BUILD_NUM='XIZB3Z';
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}

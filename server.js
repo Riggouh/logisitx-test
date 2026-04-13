@@ -119,8 +119,9 @@ function createSession(user){
   console.log('✅ Session created:',user.toLowerCase(),'| token:',token.substring(0,12)+'...','| total sessions:',Object.keys(sessions).length);
   return token;
 }
-function getSession(req){
-  const ah=req.headers['authorization']||'';const token=ah.startsWith('Bearer ')?ah.slice(7):(req.headers['x-session']||'');
+function getSession(req,bodyData){
+  const ah=req.headers['authorization']||'';
+  const token=ah.startsWith('Bearer ')?ah.slice(7):(req.headers['x-session']||(bodyData&&bodyData._token)||'');
   const s=sessions[token];
   if(!s)return null;
   if(Date.now()-s.ts>SESSION_TTL){delete sessions[token];return null}
@@ -489,7 +490,7 @@ function handleStorage(req,res){
       const{key,value,shared}=data;
       if(!isValidKey(key)){res.statusCode=403;res.end('{"error":"forbidden key"}');return}
       // Phase 3: write access control
-      const sessionUser=getSession(req);
+      const sessionUser=getSession(req,data);
       const writeErr=checkWriteAccess(key,sessionUser);
       if(writeErr){
         const hdr=req.headers['authorization']||req.headers['x-session']||'(none)';
