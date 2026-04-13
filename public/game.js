@@ -1,4 +1,4 @@
-// LogistiX — Build X50WNT — 2026-04-13 11:57
+// LogistiX — Build X5E8ET — 2026-04-13 12:07
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1423,6 +1423,110 @@ function removeVehicle(id){ if(G)G.vehs=G.vehs.filter(v=>v.id!==id) }
 function addOrder(o){ if(G)G.orders.push(o) }
 function removeOrder(id){ if(G)G.orders=G.orders.filter(o=>o.id!==id) }
 
+
+
+// ── src/js/server_auth.js ──
+// ══════════════════════════════════════════
+// SERVER AUTH BRIDGE
+// Probes server for /api/auth/ and provides
+// window.serverAuth object used by auth.js
+// ══════════════════════════════════════════
+
+let _sessionToken=null;
+
+function _headers(){
+  const h={'Content-Type':'application/json'};
+  if(_sessionToken)h['X-Session']=_sessionToken;
+  return h;
+}
+
+async function _post(action,body){
+  const res=await fetch('/api/auth/'+action,{method:'POST',headers:_headers(),body:JSON.stringify(body)});
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.error||'auth error');
+  return data;
+}
+
+(async function initServerAuth(){
+  // Probe: does the server have auth endpoints?
+  try{
+    const res=await fetch('/api/auth/ensuretest',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(!res.ok&&res.status!==200)throw new Error('no auth');
+    // Server auth is available
+  }catch(e){
+    console.debug('Server auth not available, running in client-only mode');
+    return;
+  }
+
+  window.serverAuth={
+    available:true,
+
+    async login(user,pass){
+      const data=await _post('login',{user,pass});
+      if(data.token)_sessionToken=data.token;
+      // Also set token on storage helper so all subsequent requests are authenticated
+      if(window._lxSessionToken!==undefined)window._lxSessionToken=_sessionToken;
+      return data;
+    },
+
+    async register(user,email,pass,question,answer){
+      return _post('register',{user,email,pass,question,answer});
+    },
+
+    async resetStep1(user){
+      return _post('reset1',{user});
+    },
+
+    async resetStep2(user,answer,newPass){
+      return _post('reset2',{user,answer,newPass});
+    },
+
+    async changePw(newPass){
+      return _post('changepw',{newPass});
+    },
+
+    async ensureTest(){
+      return _post('ensuretest',{});
+    },
+
+    async checkAdmin(){
+      return _post('checkadmin',{});
+    },
+
+    async getUsers(){
+      return _post('getusers',{});
+    },
+
+    async getAdminUsers(){
+      return _post('getadmins',{});
+    },
+
+    async addAdmin(user){
+      return _post('addadmin',{user});
+    },
+
+    async removeAdmin(user){
+      return _post('removeadmin',{user});
+    },
+
+    getToken(){return _sessionToken},
+    setToken(t){_sessionToken=t},
+  };
+
+  // Inject session token into storage requests
+  // Override the global req() helper to include X-Session
+  const origFetch=window.fetch;
+  window.fetch=function(url,opts){
+    if(_sessionToken&&typeof url==='string'&&url.startsWith('/api/')){
+      opts=opts||{};
+      opts.headers=opts.headers||{};
+      if(!opts.headers['X-Session'])opts.headers['X-Session']=_sessionToken;
+    }
+    return origFetch.call(this,url,opts);
+  };
+
+  console.log('✅ Server auth initialized');
+})();
 
 
 // ── src/js/game/auth.js ──
