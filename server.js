@@ -116,6 +116,7 @@ const sessions={};
 function createSession(user){
   const token=crypto.randomBytes(32).toString('hex');
   sessions[token]={user:user.toLowerCase(),ts:Date.now()};
+  console.log('✅ Session created:',user.toLowerCase(),'| token:',token.substring(0,12)+'...','| total sessions:',Object.keys(sessions).length);
   return token;
 }
 function getSession(req){
@@ -490,7 +491,11 @@ function handleStorage(req,res){
       // Phase 3: write access control
       const sessionUser=getSession(req);
       const writeErr=checkWriteAccess(key,sessionUser);
-      if(writeErr){res.statusCode=403;res.end(JSON.stringify({error:writeErr}));return}
+      if(writeErr){
+        const hdr=req.headers['x-session']||'(none)';
+        console.log('🚫 STORAGE 403:',key,'| session:',sessionUser,'| header:',hdr.substring(0,12)+'...','| reason:',writeErr,'| sessions:',Object.keys(sessions).length);
+        res.statusCode=403;res.end(JSON.stringify({error:writeErr}));return
+      }
       const f=getFile(key,shared);ensureFile(f);const store=readJSON(f);
       store[key]=value;safeWrite(f,store);
       res.end(JSON.stringify({key,value,shared:!!shared}));
