@@ -239,7 +239,7 @@ function setHeaders(req,res){
   res.setHeader('X-Frame-Options','SAMEORIGIN');
   res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
 }
-const CSP="default-src 'self'; manifest-src 'self' data:; worker-src 'self' blob:; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de *.opentopomap.org *.arcgisonline.com *.basemaps.cartocdn.com; connect-src 'self' router.project-osrm.org nominatim.openstreetmap.org";
+const CSP="default-src 'self'; manifest-src 'self' data:; worker-src 'self' blob:; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; font-src fonts.gstatic.com cdnjs.cloudflare.com; img-src 'self' data: blob: cdnjs.cloudflare.com tile.openstreetmap.org *.tile.openstreetmap.org *.openstreetmap.de *.opentopomap.org *.arcgisonline.com *.basemaps.cartocdn.com; connect-src 'self' router.project-osrm.org nominatim.openstreetmap.org";
 
 // ── Body parser helper ──
 function readBody(req,maxSize,cb){

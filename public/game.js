@@ -1,5 +1,5 @@
-// LogistiX — Build XG7FV1 — 2026-04-13 17:10
-window.BUILD_NUM='XG7FV1';
+// LogistiX — Build XGTU0J — 2026-04-13 17:27
+window.BUILD_NUM='XGTU0J';
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1294,8 +1294,7 @@ async function storeSet(k,v,shared){
     try{await window.storage.set(k,v,!!shared)}
     catch(e){
       if(e.message&&e.message.includes('403')){
-        // Auth failed — fall back to localStorage for this session
-        if(!window._storage403Warned){window._storage403Warned=true;console.warn('⚠️ Storage: Server lehnt Schreibzugriff ab (403). Spielstand wird lokal gespeichert. Bitte neu einloggen.')}
+        if(!window._storage403Warned){window._storage403Warned=true;console.warn('⚠️ Storage 403. Token:', window._lxSessionToken ? window._lxSessionToken.substring(0,12)+'...' : 'KEINER', '| Key:', k)}
         try{localStorage.setItem(k,v)}catch(e2){console.debug(e2)}
       } else {console.warn('Storage:',e)}
     }
@@ -1579,15 +1578,18 @@ async function doLogin(){
   // ── Server auth (Phase 2) ──
   if(window.serverAuth?.available){
     try{
+      console.warn('🔐 Server-Login für: '+user+' (serverAuth.available='+!!window.serverAuth+')');
       const res=await window.serverAuth.login(user,pass);
       if(res.error){_authUI.setMsg(res.error==='invalid credentials'?'Falscher Benutzername oder Passwort':res.error==='too many attempts, wait 5 min'?'Zu viele Versuche. Warte 5 Minuten.':res.error,false);hideLoading();return}
       if(res.ok&&res.token){
+        console.warn('✅ Server-Login OK! Token: '+window._lxSessionToken?.substring(0,12)+'...');
         currentUser=user.toLowerCase();
         _authUI.clearMsg();
         try{adminLog('auth','🔑 Login: '+user)}catch(e){console.debug(e)}
         hideLoading();afterLogin(res.user||{});return;
       }
-    }catch(e){console.warn('Server auth failed, falling back to client:',e)}
+      console.warn('❓ Server antwortete ohne Token:', JSON.stringify(res).substring(0,100));
+    }catch(e){console.warn('❌ Server-Login fehlgeschlagen: '+e.message+', Fallback auf Client-Auth')}
   }
   // ── Client fallback (Claude.ai / offline) ──
   if(!await checkRateLimit(user)){_authUI.setMsg('Zu viele Versuche. Warte 5 Minuten.',false);hideLoading();return}
@@ -1605,23 +1607,26 @@ async function doLogin(){
   await clearRateLimit(user);currentUser=user.toLowerCase();
   // Auto-migrate: if server auth available but user only exists client-side, register on server + get token
   if(window.serverAuth?.available&&!window._lxSessionToken){
+    console.warn('🔄 Migration: registering + logging in on server...');
     try{
       // Step 1: Try registering with current password
       let regOk=false;
-      try{await window.serverAuth.register(u.user||user,u.email||'migrated@logistix.local',pass,u.question||'Passwort?',pass);regOk=true}catch(e){
+      try{await window.serverAuth.register(u.user||user,u.email||'migrated@logistix.local',pass,u.question||'Passwort?',pass);regOk=true;console.warn('  ✅ Register OK')}catch(e){
+        console.warn('  ❌ Register failed:',e.message);
         if(e.message&&e.message.includes('min 8')){
           toast('⚠️ Passwort zu kurz für Server-Sync (min. 8 Zeichen). Bitte in Einstellungen ändern.','var(--go)',5000);
         }
-        // 409 = already exists → try login anyway
       }
       // Step 2: Login to get a session token
       try{
         const srvRes=await window.serverAuth.login(user,pass);
-        if(srvRes.ok&&srvRes.token)console.log('✅ Server-Session erhalten: '+user);
+        if(srvRes.ok&&srvRes.token)console.warn('  ✅ Server-Session erhalten, token:', window._lxSessionToken?.substring(0,8)+'...');
+        else console.warn('  ❌ Login returned no token:', srvRes);
       }catch(e){
-        console.warn('⚠️ Server-Login fehlgeschlagen: '+e.message);
+        console.warn('  ❌ Server-Login fehlgeschlagen: '+e.message);
       }
-    }catch(e){console.debug('Server migration:',e)}
+    }catch(e){console.debug('Server migration error:',e)}
+    console.warn('🔐 Token nach Login:', window._lxSessionToken ? window._lxSessionToken.substring(0,8)+'...' : 'KEINER');
   }
   _authUI.clearMsg();try{adminLog('auth','🔑 Login: '+user)}catch(e){console.debug(e)}
   hideLoading();afterLogin(u);
@@ -1780,6 +1785,7 @@ function saveNow(){
 let _lbLastMoney=null;let _lbLastTs=0;
 function _saveLb(){
   if(!G||!currentUser||typeof window==='undefined'||!window.storage)return;
+  if(window._storage403Warned)return; // Skip LB save when server auth failed
   try{
     const now=Date.now();
     const money=getMoney();
@@ -14693,34 +14699,13 @@ async function _migrateToShared(){
   try{
     const session=sessionStorage.getItem('lx_session');
     if(session){
-      // When server auth is available, always force fresh login to ensure valid token
       if(window.serverAuth?.available){
-        const savedToken=sessionStorage.getItem('lx_server_token');
-        if(savedToken){
-          // Have a saved token — try to use it
-          window.serverAuth.setToken(savedToken);
-          // Quick validation: try a storage read for own save
-          try{
-            const testR=await fetch('/api/storage?key=lx_save_'+encodeURIComponent(session)+'&shared=false',{headers:{'X-Session':savedToken}});
-            if(testR.status===403||testR.status===401){throw new Error('token expired')}
-            // Token valid — proceed with auto-login
-            currentUser=session;
-            const users=await getUsers();
-            if(users[session]){
-              window.addEventListener('beforeunload',()=>{saveNow();saveCache()});
-              afterLogin(users[session]);
-              return;
-            }
-          }catch(e){
-            console.warn('⚠️ Server-Token ungültig, bitte neu einloggen');
-            window.serverAuth.setToken('');
-            sessionStorage.removeItem('lx_server_token');
-            sessionStorage.removeItem('lx_session');
-          }
-        } else {
-          // No saved token — can't auto-login, need password
-          sessionStorage.removeItem('lx_session');
-        }
+        // Server auth requires fresh login for valid token — prefill username
+        sessionStorage.removeItem('lx_session');
+        const loginField=document.getElementById('loginUser');
+        if(loginField){loginField.value=session;loginField.disabled=false}
+        // Focus password field for quick re-login
+        setTimeout(()=>{const pw=document.getElementById('loginPass');if(pw)pw.focus()},200);
       } else {
         // Client-only mode — auto-login from sessionStorage
         const users=await getUsers();

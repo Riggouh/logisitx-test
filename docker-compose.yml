@@ -11,7 +11,7 @@ services:
       # Security: Set to your domain to restrict API access (default: * = open)
       # - CORS_ORIGIN=https://logistix.example.com
       # Rate limit: max requests per minute per IP (default: 200)
-      # - RATE_MAX=200
+      # - RATE_MAX=600
     restart: unless-stopped
 volumes:
   logistix-game-data:
