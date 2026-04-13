@@ -1,5 +1,5 @@
-// LogistiX — Build XFN6W1 — 2026-04-13 16:54
-window.BUILD_NUM='XFN6W1';
+// LogistiX — Build XG7FV1 — 2026-04-13 17:10
+window.BUILD_NUM='XG7FV1';
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1290,8 +1290,17 @@ async function storeGet(k,shared){
 }
 async function storeSet(k,v,shared){
   _memStore[k]=v;
-  if(window.storage){try{await window.storage.set(k,v,!!shared)}catch(e){console.warn('Storage:',e)}}
-  else if(typeof localStorage!=='undefined'){try{localStorage.setItem(k,v)}catch(e){console.warn('Storage:',e)}}
+  if(window.storage&&!window._storageDisabled){
+    try{await window.storage.set(k,v,!!shared)}
+    catch(e){
+      if(e.message&&e.message.includes('403')){
+        // Auth failed — fall back to localStorage for this session
+        if(!window._storage403Warned){window._storage403Warned=true;console.warn('⚠️ Storage: Server lehnt Schreibzugriff ab (403). Spielstand wird lokal gespeichert. Bitte neu einloggen.')}
+        try{localStorage.setItem(k,v)}catch(e2){console.debug(e2)}
+      } else {console.warn('Storage:',e)}
+    }
+  }
+  else if(typeof localStorage!=='undefined'){try{localStorage.setItem(k,v)}catch(e){console.debug(e)}}
 }
 async function storeDel(k,shared){
   delete _memStore[k];
@@ -1433,7 +1442,7 @@ function removeOrder(id){ if(G)G.orders=G.orders.filter(o=>o.id!==id) }
 // ══════════════════════════════════════════
 
 let _sessionToken=null;
-function _setToken(t){_sessionToken=t;window._lxSessionToken=t}
+function _setToken(t){_sessionToken=t;window._lxSessionToken=t;try{sessionStorage.setItem('lx_server_token',t||'')}catch(e){}}
 
 function _headers(){
   const h={'Content-Type':'application/json'};
@@ -1598,15 +1607,19 @@ async function doLogin(){
   if(window.serverAuth?.available&&!window._lxSessionToken){
     try{
       // Step 1: Try registering with current password
-      try{await window.serverAuth.register(u.user||user,u.email||'migrated@logistix.local',pass,u.question||'Passwort?',pass)}catch(e){/* 409 = already exists, OK */}
+      let regOk=false;
+      try{await window.serverAuth.register(u.user||user,u.email||'migrated@logistix.local',pass,u.question||'Passwort?',pass);regOk=true}catch(e){
+        if(e.message&&e.message.includes('min 8')){
+          toast('⚠️ Passwort zu kurz für Server-Sync (min. 8 Zeichen). Bitte in Einstellungen ändern.','var(--go)',5000);
+        }
+        // 409 = already exists → try login anyway
+      }
       // Step 2: Login to get a session token
       try{
         const srvRes=await window.serverAuth.login(user,pass);
         if(srvRes.ok&&srvRes.token)console.log('✅ Server-Session erhalten: '+user);
       }catch(e){
-        // Login failed — might have wrong password on server from previous migration
-        // Nothing we can do without admin intervention, continue without server session
-        console.warn('⚠️ Server-Login fehlgeschlagen, Spielstand wird lokal gespeichert. Fehler: '+e.message);
+        console.warn('⚠️ Server-Login fehlgeschlagen: '+e.message);
       }
     }catch(e){console.debug('Server migration:',e)}
   }
@@ -9532,7 +9545,6 @@ function compAutomation(el, append) {
   const tabs = [
     ['routes', '🗺️ Routen', 'var(--a2)', null],
     ['standing', '🔄 DA', 'var(--go)', soCount ? '<span style="background:rgba(251,191,36,.25);color:var(--go);border-radius:8px;padding:0 5px;font-size:9px;margin-left:3px">' + soCount + '</span>' + (soWarn ? '<span style="background:var(--r);color:#fff;border-radius:8px;padding:0 4px;font-size:9px;margin-left:2px">!</span>' : '') : null],
-    ['chains', '🔗 Ketten', '#a855f7', null],
   ];
   tabs.forEach(([id, lbl, clr, badge]) => {
     const on = tab === id;
@@ -9545,19 +9557,6 @@ function compAutomation(el, append) {
     h += '<div id="_autoRoutesInner"></div>';
   } else if (tab === 'standing') {
     h += '<div id="_autoStandingInner"></div>';
-  } else if (tab === 'chains') {
-    h += '<div style="font-size:12px;color:var(--td);margin-bottom:8px">Lieferketten-Analyse pro Standort — zeigt was du produzierst, verarbeitest und noch bauen könntest.</div>';
-    cities.forEach(c => {
-      const bs = getBuildings(c.id);
-      const prodCount = bs.filter(b => { const d = BLD[b.type]; return d && (d.prod || d.tp === 'farm' || d.tp === 'orchard'); }).length;
-      const procCount = bs.filter(b => { const d = BLD[b.type]; return d && (d.tp === 'p' || d.tp === 'recipe'); }).length;
-      h += '<div class="crd" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px" onclick="_showChainWizard(\'' + c.id + '\')">';
-      h += '<span style="font-size:20px">🔗</span>';
-      h += '<div style="flex:1"><div style="font-weight:600;font-size:13px">' + sanitize(c.name) + '</div>';
-      h += '<div class="sub">' + bs.length + ' Gebäude · ' + prodCount + ' Rohstoff · ' + procCount + ' Verarbeitung</div></div>';
-      h += '<i class="ri-arrow-right-s-line" style="color:var(--td);font-size:18px"></i></div>';
-    });
-    if (!cities.length) h += '<div style="text-align:center;padding:16px;color:var(--td)">Kaufe zuerst einen Standort.</div>';
   }
 
   const div = document.createElement('div');
@@ -10814,10 +10813,13 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
   h+='<div class="ch"><div class="ci">🏭</div><div><div class="cn">'+sanitize(c.name)+'</div>';
   h+='<div class="cm">'+usedSlots(c.id)+'/'+maxB+' · 📦 '+storTot2+'/'+cCap2+(regInfo?' · <span style="color:'+regInfo.color+'">'+regInfo.em+' '+regInfo.name+'</span>':'')+'</div></div></div>';
   h+='<div class="pb mb6b"><div class="pf" style="width:'+Math.min(100,cCap2?storTot2/cCap2*100:0)+'%"></div></div>';
-  // Sub-tab bar (styled like main tabs)
-  h+='<div class="bld-tabs">';
-  [['build','<i class="ri-hammer-line"></i> Bauen'],['manage','<i class="ri-settings-3-line"></i> Verwalten'+(bs.length?' ('+bs.length+')':'')]].forEach(([st,label])=>{
-    h+='<button class="bld-tab'+(bldSub===st?' on':'')+'" onclick="bldSub=\''+st+'\';renComp()">'+label+'</button>'});
+  // Sub-tab bar (pill style matching logistics tabs)
+  h+='<div style="display:flex;gap:3px;margin-bottom:12px;padding:4px;background:rgba(0,0,0,.15);border-radius:10px;border:1px solid var(--bd2)">';
+  [['manage','<i class="ri-settings-3-line"></i> Verwalten'+(bs.length?' ('+bs.length+')':''),'var(--a)'],
+   ['build','<i class="ri-hammer-line"></i> Bauen','var(--go)'],
+   ['chains','<i class="ri-links-line"></i> Ketten','#a855f7']].forEach(([st,label,clr])=>{
+    const on=bldSub===st;
+    h+='<button style="flex:1;padding:8px 6px;font-size:12px;font-family:var(--mono);font-weight:'+(on?'700':'500')+';color:'+(on?'#fff':'var(--td)')+';background:'+(on?clr:'transparent')+';border:'+(on?'1px solid '+clr:'1px solid transparent')+';border-radius:7px;cursor:pointer;white-space:nowrap;transition:.15s" onclick="bldSub=\''+st+'\';renComp()">'+label+'</button>'});
   h+='</div>';
 
   // ── SUB: MANAGE ──
@@ -10982,6 +10984,34 @@ function compBuildings(el){if(!G.sel&&cities.length)G.sel=cities[0].id;const c=G
           h+='</div>';}
         h+='</details>';}
     } else h+='<div class="sub center-p12">🏗️ Maximum erreicht ('+maxB+'/'+maxB+')</div>';
+  }
+
+  // ── SUB: CHAINS ──
+  if(bldSub==='chains'){
+    h+='<div style="font-size:12px;color:var(--td);margin-bottom:10px">Lieferketten-Analyse — was produziert wird, was fehlt, und was du noch bauen könntest.</div>';
+    // Current city chain wizard
+    h+='<div class="crd" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px;border-color:rgba(168,85,247,.25);background:rgba(168,85,247,.04)" onclick="_showChainWizard(\''+c.id+'\')">';
+    h+='<span style="font-size:24px">🔗</span>';
+    const prodCount2=bs.filter(b2=>{const d2=BLD[b2.type];return d2&&(d2.prod||d2.tp==='farm'||d2.tp==='orchard')}).length;
+    const procCount2=bs.filter(b2=>{const d2=BLD[b2.type];return d2&&(d2.tp==='p'||d2.tp==='recipe')}).length;
+    h+='<div style="flex:1"><div style="font-weight:700;font-size:14px;color:#a855f7">'+sanitize(c.name)+' analysieren</div>';
+    h+='<div class="sub">'+bs.length+' Gebäude · '+prodCount2+' Rohstoff · '+procCount2+' Verarbeitung</div></div>';
+    h+='<i class="ri-arrow-right-s-line" style="color:#a855f7;font-size:20px"></i></div>';
+    // Other cities
+    const otherCities=cities.filter(c2=>c2.id!==c.id);
+    if(otherCities.length){
+      h+='<div class="sec-label" style="margin-top:10px">Andere Standorte</div>';
+      otherCities.forEach(c2=>{
+        const bs2=getBuildings(c2.id);
+        const p2=bs2.filter(b2=>{const d2=BLD[b2.type];return d2&&(d2.prod||d2.tp==='farm'||d2.tp==='orchard')}).length;
+        const pr2=bs2.filter(b2=>{const d2=BLD[b2.type];return d2&&(d2.tp==='p'||d2.tp==='recipe')}).length;
+        h+='<div class="crd" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 10px" onclick="_showChainWizard(\''+c2.id+'\')">';
+        h+='<span style="font-size:16px">🔗</span>';
+        h+='<div style="flex:1"><div style="font-weight:600;font-size:12px">'+sanitize(c2.name)+'</div>';
+        h+='<div class="sub" style="font-size:10px">'+bs2.length+' Geb. · '+p2+' Roh · '+pr2+' Verarb.</div></div>';
+        h+='<i class="ri-arrow-right-s-line" style="color:var(--td);font-size:16px"></i></div>';
+      });
+    }
   }
 
   // Close city (always visible at bottom)
@@ -14663,12 +14693,43 @@ async function _migrateToShared(){
   try{
     const session=sessionStorage.getItem('lx_session');
     if(session){
-      const users=await getUsers();
-      if(users[session]){
-        currentUser=session;
-        window.addEventListener('beforeunload',()=>{saveNow();saveCache()});
-        afterLogin(users[session]);
-        return;
+      // When server auth is available, always force fresh login to ensure valid token
+      if(window.serverAuth?.available){
+        const savedToken=sessionStorage.getItem('lx_server_token');
+        if(savedToken){
+          // Have a saved token — try to use it
+          window.serverAuth.setToken(savedToken);
+          // Quick validation: try a storage read for own save
+          try{
+            const testR=await fetch('/api/storage?key=lx_save_'+encodeURIComponent(session)+'&shared=false',{headers:{'X-Session':savedToken}});
+            if(testR.status===403||testR.status===401){throw new Error('token expired')}
+            // Token valid — proceed with auto-login
+            currentUser=session;
+            const users=await getUsers();
+            if(users[session]){
+              window.addEventListener('beforeunload',()=>{saveNow();saveCache()});
+              afterLogin(users[session]);
+              return;
+            }
+          }catch(e){
+            console.warn('⚠️ Server-Token ungültig, bitte neu einloggen');
+            window.serverAuth.setToken('');
+            sessionStorage.removeItem('lx_server_token');
+            sessionStorage.removeItem('lx_session');
+          }
+        } else {
+          // No saved token — can't auto-login, need password
+          sessionStorage.removeItem('lx_session');
+        }
+      } else {
+        // Client-only mode — auto-login from sessionStorage
+        const users=await getUsers();
+        if(users[session]){
+          currentUser=session;
+          window.addEventListener('beforeunload',()=>{saveNow();saveCache()});
+          afterLogin(users[session]);
+          return;
+        }
       }
     }
   }catch(e){console.debug(e)}
