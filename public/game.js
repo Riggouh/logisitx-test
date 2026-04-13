@@ -1,5 +1,5 @@
-// LogistiX — Build X5OLTR — 2026-04-13 12:15
-window.BUILD_NUM='X5OLTR';
+// LogistiX — Build X66F3N — 2026-04-13 12:29
+window.BUILD_NUM='X66F3N';
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1435,6 +1435,8 @@ function removeOrder(id){ if(G)G.orders=G.orders.filter(o=>o.id!==id) }
 
 let _sessionToken=null;
 
+function _setToken(t){_sessionToken=t;window._lxSessionToken=t}
+
 function _headers(){
   const h={'Content-Type':'application/json'};
   if(_sessionToken)h['X-Session']=_sessionToken;
@@ -1464,9 +1466,9 @@ async function _post(action,body){
 
     async login(user,pass){
       const data=await _post('login',{user,pass});
-      if(data.token)_sessionToken=data.token;
+      if(data.token)_setToken(data.token);
       // Also set token on storage helper so all subsequent requests are authenticated
-      if(window._lxSessionToken!==undefined)window._lxSessionToken=_sessionToken;
+      
       return data;
     },
 
@@ -1520,7 +1522,7 @@ async function _post(action,body){
     },
 
     getToken(){return _sessionToken},
-    setToken(t){_sessionToken=t},
+    setToken(t){_setToken(t)},
   };
 
   // Inject session token into storage requests
@@ -9276,9 +9278,18 @@ function _orderCard(o, accepted) {
   let remaining = o.amt - delivered;
   let pct = o.amt ? Math.round(delivered / o.amt * 100) : 0;
 
-  // Open orders auto-expand (actions visible), accepted collapse by default
-  let autoOpen = !accepted ? ' ord-open' : '';
-  let h = '<div class="crd ord-card' + autoOpen + '" data-oid="' + o.id + '" style="border-color:' + borderClr + ';padding:0;overflow:hidden;cursor:pointer" onclick="this.classList.toggle(\'ord-open\')">';
+  // Track open/closed state across re-renders (survives ticks)
+  if(!window._ordCardState)window._ordCardState={};
+  let isOpen;
+  if(window._ordCardState[o.id]!==undefined){
+    // User manually toggled — respect that
+    isOpen=window._ordCardState[o.id];
+  } else {
+    // Auto-logic: open if needs work, closed if fully shipped
+    if(!accepted) isOpen=true; // open orders always expanded
+    else isOpen=shipped<o.amt; // accepted: open if not fully assigned
+  }
+  let h = '<div class="crd ord-card' + (isOpen?' ord-open':'') + '" data-oid="' + o.id + '" style="border-color:' + borderClr + ';padding:0;overflow:hidden;cursor:pointer" onclick="window._ordCardState[this.dataset.oid]=!this.classList.contains(\'ord-open\');this.classList.toggle(\'ord-open\')">';
 
   // ═══ COMPACT HEADER (always visible) ═══
   h += '<div style="padding:10px 12px;background:rgba(255,255,255,.04)">';
@@ -9402,14 +9413,21 @@ function _orderCard(o, accepted) {
 
     // ── Buttons ──
     let tgt = typeof Cx === 'function' ? Cx(o.to) : null;
-    let freeV = 0, soonV = 0;
+    let freeV = 0, soonV = 0, specNeeded = '';
     if (tgt) {
-      // Count vehicles that can actually carry this good (same logic as autoAssign)
-      const dToTgt = Math.round(hav(tgt.lat, tgt.lng, tgt.lat, tgt.lng));
+      // Check if this good needs spec transport at this distance
+      let gd2 = GOODS[o.good];
+      let needsSpec = false;
+      if (gd2 && gd2.transport && o.srcDist) {
+        let specThresh = SPEC_DIST[gd2.transport] || 0;
+        if (o.srcDist >= specThresh) {
+          needsSpec = true;
+          specNeeded = SPEC_LABELS[gd2.transport] || gd2.transport;
+        }
+      }
       getVehicles().forEach(v2 => {
         if (v2.maintQueued || isSOBound(v2) || !canVehTravel(v2, o.to)) return;
         if (v2.st === 'idle') {
-          // Check spec transport + distance to target from vehicle location
           const vLoc = C(v2.loc);
           if (vLoc) {
             const dist = Math.round(hav(vLoc.lat, vLoc.lng, tgt.lat, tgt.lng));
@@ -9426,7 +9444,11 @@ function _orderCard(o, accepted) {
 
     h += '<div style="border-top:1px solid rgba(255,255,255,.06)"></div>';
     h += '<div style="padding:6px 12px 10px;display:flex;gap:4px;flex-wrap:wrap">';
-    h += '<button class="btn sm" style="flex:2;height:34px;font-size:12px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">\u26a1 Senden' + (freeV||soonV ? ' (\ud83d\ude9b'+freeV+(soonV?'+'+soonV:'')+')':'') + '</button>';
+    // Show spec requirement if no vehicles available
+    let sendenLabel = '\u26a1 Senden';
+    if (freeV || soonV) sendenLabel += ' (\ud83d\ude9b' + freeV + (soonV ? '+' + soonV : '') + ')';
+    else if (specNeeded) sendenLabel += ' (\u26a0\ufe0f ' + specNeeded + ')';
+    h += '<button class="btn sm" style="flex:2;height:34px;font-size:12px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">' + sendenLabel + '</button>';
     h += '<button class="btn sm" style="flex:2;height:34px;font-size:12px" onclick="shAsgn(\'' + o.id + '\')">\ud83d\ude9b Zuweisen</button>';
     h += '<button class="btn sm" style="flex:0;height:34px;min-width:38px;font-size:14px" onclick="showOrderDetail(\'' + o.id + '\')">\ud83d\udcca</button>';
     h += '<button class="btn sm" style="height:34px;font-size:12px;color:var(--r);border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.06);white-space:nowrap;font-weight:600" onclick="if(confirm(\'Storno? \u2212' + fmt(penalty) + '\')){cancelO(\'' + o.id + '\');ren()}">\u2212' + fmt(penalty) + '</button>';

@@ -3,5 +3,5 @@ FROM node:18-alpine
 WORKDIR /app
 COPY server.js .
 COPY public/ ./public/
-EXPOSE 47291
+EXPOSE 48432
 CMD ["node","server.js"]

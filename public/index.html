@@ -250,6 +250,7 @@ body{font-family:'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif;backgroun
 /* ═══ DASHBOARD PANEL (default view) ═══ */
 #dashPanel{position:fixed;top:56px;left:0;right:0;bottom:0;background:var(--bg);overflow:hidden;z-index:2}
 .dash-scroll{height:100%;overflow-y:auto;padding:20px;scrollbar-width:thin}
+.dash-body{max-width:1000px;margin:0 auto}
 .dash-scroll::-webkit-scrollbar{width:7px}
 .dash-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
 .dash-scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
@@ -649,7 +650,6 @@ body{font-family:'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif;backgroun
   #map .leaflet-top{top:48px!important}
 
   /* Dashboard ultra-compact */
-  .dash-body{width:100%;max-width:1200px;margin:0 auto;padding:8px}
   .dash-big{font-size:20px}
   .dash-card{padding:8px}
   .crd{padding:6px 8px;margin-bottom:4px}
@@ -1229,12 +1229,13 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </div>
 
-<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build X5OLTR</div>
+<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build X66F3N</div>
 <script>(function(){
   if(window.storage) return;
   const BASE='/api/storage';
   async function req(method,p,body){
     const opts={method,headers:{'Content-Type':'application/json'}};
+    if(window._lxSessionToken)opts.headers['X-Session']=window._lxSessionToken;
     if(body)opts.body=JSON.stringify(body);
     const r=await fetch(BASE+p,opts);
     if(r.status===404)return null;
