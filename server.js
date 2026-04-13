@@ -7,7 +7,7 @@ const http=require('http'),fs=require('fs'),path=require('path'),crypto=require(
 const DATA_DIR=process.env.DATA_DIR||'/data';
 const PORT=process.env.PORT||48432;
 const CORS_ORIGIN=process.env.CORS_ORIGIN||'*';
-const RATE_MAX=parseInt(process.env.RATE_MAX)||200;
+const RATE_MAX=parseInt(process.env.RATE_MAX)||600;
 const RATE_WINDOW=60000;
 const SESSION_TTL=24*3600*1000; // 24h
 const ADMIN_USER=process.env.ADMIN_USER||'riggouh';

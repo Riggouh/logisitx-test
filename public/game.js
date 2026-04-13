@@ -1,5 +1,5 @@
-// LogistiX — Build X66F3N — 2026-04-13 12:29
-window.BUILD_NUM='X66F3N';
+// LogistiX — Build XFN6W1 — 2026-04-13 16:54
+window.BUILD_NUM='XFN6W1';
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1429,12 +1429,10 @@ function removeOrder(id){ if(G)G.orders=G.orders.filter(o=>o.id!==id) }
 // ── src/js/server_auth.js ──
 // ══════════════════════════════════════════
 // SERVER AUTH BRIDGE
-// Probes server for /api/auth/ and provides
-// window.serverAuth object used by auth.js
+// Synchronous probe + window.serverAuth for auth.js
 // ══════════════════════════════════════════
 
 let _sessionToken=null;
-
 function _setToken(t){_sessionToken=t;window._lxSessionToken=t}
 
 function _headers(){
@@ -1450,25 +1448,23 @@ async function _post(action,body){
   return data;
 }
 
-(async function initServerAuth(){
-  // Probe: does the server have auth endpoints?
-  try{
-    const res=await fetch('/api/auth/ensuretest',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    if(!res.ok&&res.status!==200)throw new Error('no auth');
-    // Server auth is available
-  }catch(e){
-    console.debug('Server auth not available, running in client-only mode');
-    return;
-  }
+// ── Synchronous probe so serverAuth is ready before any login code runs ──
+let _serverAvailable=false;
+try{
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/auth/ensuretest',false);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.send('{}');
+  _serverAvailable=(xhr.status===200);
+}catch(e){_serverAvailable=false}
 
+if(_serverAvailable){
   window.serverAuth={
     available:true,
 
     async login(user,pass){
       const data=await _post('login',{user,pass});
       if(data.token)_setToken(data.token);
-      // Also set token on storage helper so all subsequent requests are authenticated
-      
       return data;
     },
 
@@ -1476,69 +1472,24 @@ async function _post(action,body){
       return _post('register',{user,email,pass,question,answer});
     },
 
-    async resetStep1(user){
-      return _post('reset1',{user});
-    },
-
-    async resetStep2(user,answer,newPass){
-      return _post('reset2',{user,answer,newPass});
-    },
-
-    async changePw(newPass){
-      return _post('changepw',{newPass});
-    },
-
-    async ensureTest(){
-      return _post('ensuretest',{});
-    },
-
-    async checkAdmin(){
-      return _post('checkadmin',{});
-    },
-
-    async adminLogin(pass){
-      const data=await _post('admin',{pass});
-      return data;
-    },
-
-    async adminChangePw(oldPass,newPass){
-      return _post('adminpw',{oldPass,newPass});
-    },
-
-    async getUsers(){
-      return _post('users',{});
-    },
-
-    async getAdminUsers(){
-      return _post('adminusers',{});
-    },
-
-    async addAdmin(user){
-      return _post('addadmin',{user});
-    },
-
-    async removeAdmin(user){
-      return _post('removeadmin',{user});
-    },
-
+    async resetStep1(user){return _post('reset1',{user})},
+    async resetStep2(user,answer,newPass){return _post('reset2',{user,answer,newPass})},
+    async changePw(newPass){return _post('changepw',{newPass})},
+    async ensureTest(){return _post('ensuretest',{})},
+    async checkAdmin(){return _post('checkadmin',{})},
+    async adminLogin(pass){return _post('admin',{pass})},
+    async adminChangePw(oldPass,newPass){return _post('adminpw',{oldPass,newPass})},
+    async getUsers(){return _post('users',{})},
+    async getAdminUsers(){return _post('adminusers',{})},
+    async addAdmin(user){return _post('addadmin',{user})},
+    async removeAdmin(user){return _post('removeadmin',{user})},
     getToken(){return _sessionToken},
     setToken(t){_setToken(t)},
   };
-
-  // Inject session token into storage requests
-  // Override the global req() helper to include X-Session
-  const origFetch=window.fetch;
-  window.fetch=function(url,opts){
-    if(_sessionToken&&typeof url==='string'&&url.startsWith('/api/')){
-      opts=opts||{};
-      opts.headers=opts.headers||{};
-      if(!opts.headers['X-Session'])opts.headers['X-Session']=_sessionToken;
-    }
-    return origFetch.call(this,url,opts);
-  };
-
-  console.log('✅ Server auth initialized');
-})();
+  console.log('✅ Server auth ready');
+} else {
+  console.debug('Server auth not available, client-only mode');
+}
 
 
 // ── src/js/game/auth.js ──
@@ -1644,13 +1595,19 @@ async function doLogin(){
   }
   await clearRateLimit(user);currentUser=user.toLowerCase();
   // Auto-migrate: if server auth available but user only exists client-side, register on server + get token
-  if(window.serverAuth?.available){
+  if(window.serverAuth?.available&&!window._lxSessionToken){
     try{
-      // Try registering (will fail silently if already exists — 409)
-      await window.serverAuth.register(u.user||user,u.email||'migrated@logistix.local',pass,u.question||'Passwort?',pass).catch(()=>{});
-      // Now login to get a session token
-      const srvRes=await window.serverAuth.login(user,pass);
-      if(srvRes.ok&&srvRes.token)console.log('✅ Server-Account migriert: '+user);
+      // Step 1: Try registering with current password
+      try{await window.serverAuth.register(u.user||user,u.email||'migrated@logistix.local',pass,u.question||'Passwort?',pass)}catch(e){/* 409 = already exists, OK */}
+      // Step 2: Login to get a session token
+      try{
+        const srvRes=await window.serverAuth.login(user,pass);
+        if(srvRes.ok&&srvRes.token)console.log('✅ Server-Session erhalten: '+user);
+      }catch(e){
+        // Login failed — might have wrong password on server from previous migration
+        // Nothing we can do without admin intervention, continue without server session
+        console.warn('⚠️ Server-Login fehlgeschlagen, Spielstand wird lokal gespeichert. Fehler: '+e.message);
+      }
     }catch(e){console.debug('Server migration:',e)}
   }
   _authUI.clearMsg();try{adminLog('auth','🔑 Login: '+user)}catch(e){console.debug(e)}
@@ -3287,7 +3244,14 @@ function shAsgn(oid){if(!G)return;const o=findOrder(oid);if(!o)return;
         h+='<div class="sub" style="margin-top:4px">🔧 Passend aber Wartung eingeplant: '+couldButMaint.length+'× (abbrechen im Fuhrpark)</div>';
       }
       if(couldButNoStock.length){
-        h+='<div class="sub" style="margin-top:4px">📦 Passend aber kein Lagerbestand am Standort: '+couldButNoStock.length+'×</div>';
+        const stockCities2=cities.filter(c=>_cityStock(c.id,o.good)>0);
+        if(stockCities2.length){
+          h+='<div class="sub" style="margin-top:4px">📦 Passend aber kein Lagerbestand am Standort: '+couldButNoStock.length+'×</div>';
+          h+='<div class="sub" style="padding-left:8px;color:var(--a)">Bestand verfügbar in: '+stockCities2.slice(0,3).map(c=>c.name+' ('+_cityStock(c.id,o.good)+'×)').join(', ')+'</div>';
+          h+='<button class="btn sm" style="margin-top:6px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="closeMdl();autoAssign(\''+oid+'\');ren()">⚡ Automatisch abholen & senden</button>';
+        } else {
+          h+='<div class="sub" style="margin-top:4px;color:var(--r)">📦 Kein Lagerbestand in keiner Stadt — Produktion starten!</div>';
+        }
       }
     }
     h+='</div>';
@@ -3429,17 +3393,17 @@ function autoAssign(oid){
     if(aHub!==bHub)return aHub-bHub;
     return hav(a.lat,a.lng,tgt.lat,tgt.lng)-hav(b.lat,b.lng,tgt.lat,tgt.lng);
   });
-  // 1. Pick vehicles already at stock cities
+  // 1. Pick vehicles already at stock cities (prefer non-reserved, but use any stock)
   for(const c of sorted){
     if(cap>=remaining)break;
-    if(_availableForOrders(c.id,o.good)<=0)continue;
+    if(_cityStock(c.id,o.good)<=0)continue;
     const dToTgt=Math.round(hav(c.lat,c.lng,tgt.lat,tgt.lng));
     const avl=getVehicles().filter(v=>v.st==='idle'&&v.loc===c.id&&canVehTravel(v,o.to)&&!isSOBound(v)&&canVehCarry(v,o.good,dToTgt)).sort((a,b)=>vehCap(b)-vehCap(a));
     for(const v of avl){if(cap>=remaining)break;picks.push(v.id);cap+=vehCap(v)}
   }
   // 2. If not enough, send remote vehicles to nearest stock city
   if(cap<remaining){
-    const stockCities=sorted.filter(c=>_availableForOrders(c.id,o.good)>0);
+    const stockCities=sorted.filter(c=>_cityStock(c.id,o.good)>0);
     if(stockCities.length){
       const remoteVehs=getVehicles().filter(v=>{if(v.st!=='idle'||isSOBound(v)||v.followUpOrder||!canVehTravel(v,o.to))return false;if(_cityStock(v.loc,o.good)>0)return false;
         // Check spec: estimate dist from nearest stock city to target
@@ -3722,7 +3686,7 @@ function _routeOptimize(){
   // Sort orders by reward/distance ratio (best value first)
   const scored=unassigned.map(o=>{
     const tgt=Cx(o.to);if(!tgt)return null;
-    const nearest=cities.reduce((best,c)=>{const s=_availableForOrders(c.id,o.good);if(s<=0)return best;const d=hav(c.lat,c.lng,tgt.lat,tgt.lng);return(!best||d<best.d)?{c,d,s}:best},null);
+    const nearest=cities.reduce((best,c)=>{const s=_cityStock(c.id,o.good);if(s<=0)return best;const d=hav(c.lat,c.lng,tgt.lat,tgt.lng);return(!best||d<best.d)?{c,d,s}:best},null);
     return{o,tgt,nearest,score:nearest?(o.rew/(nearest.d||1)):0};
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
   let assigned=0,totalAmt=0;const usedVehs=new Set();
@@ -3737,12 +3701,12 @@ function _routeOptimize(){
     const remaining=o.amt-(o.shipped||0);let loaded=0;
     for(const city of sortedCities){
       if(loaded>=remaining)break;
-      if(_availableForOrders(city.id,o.good)<=0)continue;
+      if(_cityStock(city.id,o.good)<=0)continue;
       const dToTgt3=Math.round(hav(city.lat,city.lng,tgt.lat,tgt.lng));
       const avl=getVehicles().filter(v=>v.st==='idle'&&v.loc===city.id&&!usedVehs.has(v.id)&&!isSOBound(v)&&canVehTravel(v,o.to)&&canVehCarry(v,o.good,dToTgt3)).sort((a,b)=>vehCap(b)-vehCap(a));
       for(const v of avl){
         if(loaded>=remaining)break;
-        const avStock=_availableForOrders(city.id,o.good);
+        const avStock=_cityStock(city.id,o.good);
         const canLoad=Math.min(remaining-loaded,avStock,vehCap(v));
         if(canLoad<1)continue;
         _takeFromCity(city.id,o.good,canLoad);
@@ -3756,7 +3720,7 @@ function _routeOptimize(){
     }
     // Remote: send idle vehicles from no-stock cities
     if(loaded<remaining){
-      const stockCities2=sortedCities.filter(c=>_availableForOrders(c.id,o.good)>0);
+      const stockCities2=sortedCities.filter(c=>_cityStock(c.id,o.good)>0);
       if(stockCities2.length){
         const remVehs=getVehicles().filter(v=>{if(v.st!=='idle'||usedVehs.has(v.id)||isSOBound(v)||v.followUpOrder||!canVehTravel(v,o.to))return false;
           if(_cityStock(v.loc,o.good)>0)return false;
@@ -4972,14 +4936,15 @@ function tickCore(){
       let loaded=0;let sentCount=0;
       for(const city of sortedCities){
         if(loaded>=remaining)break;
-        const avail=_availableForOrders(city.id,o.good);
+        // Orders can use ALL stock including production reserve (reserve is soft buffer)
+        const avail=_cityStock(city.id,o.good);
         if(avail<=0)continue;
         const dAM=Math.round(hav(city.lat,city.lng,tgt.lat,tgt.lng));
         const avl=(_idleByCity[city.id]||[]).filter(v=>v.st==='idle'&&!v.followUpOrder&&!v.pendingTransfer&&!isSOBound(v)&&!v.maintQueued&&canVehTravel(v,o.to)&&canVehCarry(v,o.good,dAM));
         for(const v of avl){
           if(loaded>=remaining)break;
           const minLoad=(G.amMinLoad!==false)?Math.max(1,Math.floor(vehCap(v)*0.5)):1;
-          const curAvail=_availableForOrders(city.id,o.good);
+          const curAvail=_cityStock(city.id,o.good);
           const canLoad=Math.min(remaining-loaded,curAvail,vehCap(v));
           // Skip if below min load, UNLESS this is all available stock or all remaining
           if(canLoad<minLoad&&canLoad<(remaining-loaded)&&canLoad<curAvail)continue;
@@ -4997,7 +4962,7 @@ function tickCore(){
       if(loaded<remaining){
         const amMaxDist=G.amMaxDist??50;
         if(amMaxDist>0){
-        const stockCities=sortedCities.filter(c=>_availableForOrders(c.id,o.good)>0);
+        const stockCities=sortedCities.filter(c=>_cityStock(c.id,o.good)>0);
         if(stockCities.length){
           const remVehs=_idle.filter(v=>{if(v.st!=='idle'||v.followUpOrder||v.pendingTransfer||isSOBound(v)||v.maintQueued||!canVehTravel(v,o.to))return false;
             if(_cityStock(v.loc,o.good)>0)return false;
@@ -9336,8 +9301,17 @@ function _orderCard(o, accepted) {
     let mktPct = mktRef > 0 ? Math.round((ppu - mktRef) / mktRef * 100) : 0;
     let oStock = typeof _globalStock === 'function' ? _globalStock(o.good) : 0;
     let oFreeVehs = 0;
+    let tgt2 = typeof Cx === 'function' ? Cx(o.to) : null;
     getVehicles().forEach(v2 => {
-      if (!isSOBound(v2) && !v2.maintQueued && canVehTravel(v2, o.to) && v2.st === 'idle') oFreeVehs++;
+      if (!isSOBound(v2) && !v2.maintQueued && canVehTravel(v2, o.to) && v2.st === 'idle') {
+        if (tgt2) {
+          const vLoc2 = C(v2.loc);
+          if (vLoc2) {
+            const d2 = Math.round(hav(vLoc2.lat, vLoc2.lng, tgt2.lat, tgt2.lng));
+            if (canVehCarry(v2, o.good, d2)) oFreeVehs++;
+          }
+        } else oFreeVehs++;
+      }
     });
     let estTime = '';
     if (o.srcDist && getVehicles().length) {
@@ -9354,6 +9328,15 @@ function _orderCard(o, accepted) {
     h += '<span>\ud83d\udce6 ' + oStock + '</span>';
     h += '<span>\ud83d\ude9a ' + oFreeVehs + '</span>';
     if (estTime) h += '<span>\u23f1 ' + estTime + '</span>';
+    // Spec transport requirement
+    if (gd && gd.transport && o.srcDist) {
+      let specThresh = SPEC_DIST[gd.transport] || 0;
+      let specLabels2 = {cool: '🧊 Kühltransport', tank: '🛢️ Tankwagen', hazard: '⚠️ Gefahrgut'};
+      if (o.srcDist >= specThresh) {
+        let hasSpec2 = getVehicles().some(v2=>{ const vt2 = VT[v2.type]; return vt2 && (vt2.spec === gd.transport || vt2.cat === 'rail' || vt2.cat === 'sea' || vt2.cat === 'air'); });
+        h += '<span style="color:' + (hasSpec2 ? 'var(--go)' : 'var(--r)') + ';font-weight:600">' + (specLabels2[gd.transport] || gd.transport) + (hasSpec2 ? ' ✅' : ' ❌ benötigt!') + '</span>';
+      }
+    }
     h += '</div>';
 
     h += '<div class="ord-actions" style="padding:4px 12px 10px;display:flex;gap:12px">';
@@ -9375,6 +9358,14 @@ function _orderCard(o, accepted) {
     h += '<div style="display:flex;gap:12px;font-size:12px">';
     h += '<span style="color:var(--a)">\u2611 ' + delivered + '/' + o.amt + '</span>';
     h += '<span class="sub">\ud83d\ude9b ' + remaining + ' offen \u00b7 ' + stock + '\u00d7 vorr\u00e4tig</span>';
+    // Spec transport requirement
+    if (gd && gd.transport && o.srcDist) {
+      let specThresh2 = SPEC_DIST[gd.transport] || 0;
+      let specLabels3 = {cool: '🧊 Kühl', tank: '🛢️ Tank', hazard: '⚠️ Hazard'};
+      if (o.srcDist >= specThresh2) {
+        h += '<span style="color:var(--go);font-weight:600">' + (specLabels3[gd.transport] || gd.transport) + '</span>';
+      }
+    }
     h += '</div>';
 
     // Progress bar with label inside
@@ -9527,36 +9518,46 @@ function compStatsHistory(el, append) {
   else render(t, el);
 }
 
-// ── Automation (keeps existing h+= implementation) ──
+// ── Automation (sub-tab layout: Routes | DA | Ketten) ──
 function compAutomation(el, append) {
   if (!G) { render(html``, el); return; }
-  if (!G._autoSec) G._autoSec = {routes:true,standing:true};
-  if (G._autoSec.routes===undefined) G._autoSec.routes=true;
-  if (G._autoSec.standing===undefined) G._autoSec.standing=true;
-  let h = '';
-  // Routes section
-  const on1 = G._autoSec.routes;
-  h += `<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12);border-radius:6px" onclick="G._autoSec.routes=!G._autoSec.routes;renComp()">
-    <span style="color:var(--a2)">${on1?'▼':'▶'}</span>
-    <span style="font-weight:600;font-size:13px;color:var(--a2)">🗺️ Routenplaner</span></div>`;
-  if (on1) h += '<div id="_autoRoutesInner"></div>';
-  // Standing orders section
+  if (!G._autoSubTab) G._autoSubTab = 'routes';
+  const tab = G._autoSubTab;
   const soCount = (G.standingOrders||[]).filter(s=>s.active).length;
-  const soTotal = (G.standingOrders||[]).length;
-  const on2 = G._autoSec.standing;
   const soWarn = G.standingOrders?.some(s=>s.active&&s.vehicleIds?.length===0);
-  h += `<div style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;margin:6px 0;background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.12);border-radius:6px" onclick="G._autoSec.standing=!G._autoSec.standing;renComp()">
-    <span style="color:var(--go)">${on2?'▼':'▶'}</span>
-    <span style="font-weight:600;font-size:13px;color:var(--go)">🔄 Daueraufträge</span>
-    <span class="sub" style="margin-left:auto;font-size:11px">${soCount} aktiv${soTotal>soCount?' · '+(soTotal-soCount)+' pausiert':''}${soWarn?' <span style="background:var(--r);color:#fff;border-radius:8px;padding:0 5px;font-size:9px">!</span>':''}</span></div>`;
-  if (on2) h += '<div id="_autoStandingInner"></div>';
 
-  // Quick link to chain planner
-  if (cities.length && G.sel) {
-    h += '<div style="margin-top:6px;padding:8px 10px;background:rgba(168,85,247,.04);border:1px solid rgba(168,85,247,.12);border-radius:6px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="setCompTab(\'buildings\');setTimeout(function(){_showChainWizard(G.sel||cities[0].id)},100)">';
-    h += '<span style="font-size:16px">🔗</span>';
-    h += '<div><div style="font-weight:600;font-size:12px;color:#a855f7">Lieferketten-Planer</div>';
-    h += '<div class="sub" style="font-size:10px">Zeigt Verarbeitungsketten und Erweiterungen für ' + (C(G.sel)?.name || 'deinen Standort') + '</div></div></div>';
+  let h = '';
+  // Sub-tab bar
+  h += '<div style="display:flex;gap:4px;margin-bottom:10px;padding:3px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--bd)">';
+  const tabs = [
+    ['routes', '🗺️ Routen', 'var(--a2)', null],
+    ['standing', '🔄 DA', 'var(--go)', soCount ? '<span style="background:rgba(251,191,36,.25);color:var(--go);border-radius:8px;padding:0 5px;font-size:9px;margin-left:3px">' + soCount + '</span>' + (soWarn ? '<span style="background:var(--r);color:#fff;border-radius:8px;padding:0 4px;font-size:9px;margin-left:2px">!</span>' : '') : null],
+    ['chains', '🔗 Ketten', '#a855f7', null],
+  ];
+  tabs.forEach(([id, lbl, clr, badge]) => {
+    const on = tab === id;
+    h += '<button style="flex:1;padding:8px 6px;font-size:12px;font-family:var(--mono);font-weight:' + (on ? '700' : '500') + ';color:' + (on ? '#fff' : 'var(--td)') + ';background:' + (on ? clr : 'transparent') + ';border:' + (on ? '1px solid ' + clr : '1px solid transparent') + ';border-radius:7px;cursor:pointer;white-space:nowrap;transition:.15s" onclick="G._autoSubTab=\'' + id + '\';renComp()">' + lbl + (badge || '') + '</button>';
+  });
+  h += '</div>';
+
+  // Content based on active sub-tab
+  if (tab === 'routes') {
+    h += '<div id="_autoRoutesInner"></div>';
+  } else if (tab === 'standing') {
+    h += '<div id="_autoStandingInner"></div>';
+  } else if (tab === 'chains') {
+    h += '<div style="font-size:12px;color:var(--td);margin-bottom:8px">Lieferketten-Analyse pro Standort — zeigt was du produzierst, verarbeitest und noch bauen könntest.</div>';
+    cities.forEach(c => {
+      const bs = getBuildings(c.id);
+      const prodCount = bs.filter(b => { const d = BLD[b.type]; return d && (d.prod || d.tp === 'farm' || d.tp === 'orchard'); }).length;
+      const procCount = bs.filter(b => { const d = BLD[b.type]; return d && (d.tp === 'p' || d.tp === 'recipe'); }).length;
+      h += '<div class="crd" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px" onclick="_showChainWizard(\'' + c.id + '\')">';
+      h += '<span style="font-size:20px">🔗</span>';
+      h += '<div style="flex:1"><div style="font-weight:600;font-size:13px">' + sanitize(c.name) + '</div>';
+      h += '<div class="sub">' + bs.length + ' Gebäude · ' + prodCount + ' Rohstoff · ' + procCount + ' Verarbeitung</div></div>';
+      h += '<i class="ri-arrow-right-s-line" style="color:var(--td);font-size:18px"></i></div>';
+    });
+    if (!cities.length) h += '<div style="text-align:center;padding:16px;color:var(--td)">Kaufe zuerst einen Standort.</div>';
   }
 
   const div = document.createElement('div');
@@ -9565,8 +9566,8 @@ function compAutomation(el, append) {
   else { el.innerHTML = ''; el.appendChild(div); }
 
   // Populate inner sections after DOM is ready
-  if (on1) { const rEl = document.getElementById('_autoRoutesInner'); if (rEl && typeof compRoutes === 'function') compRoutes(rEl); }
-  if (on2) { const sEl = document.getElementById('_autoStandingInner'); if (sEl && typeof compStanding === 'function') compStanding(sEl); }
+  if (tab === 'routes') { const rEl = document.getElementById('_autoRoutesInner'); if (rEl && typeof compRoutes === 'function') compRoutes(rEl); }
+  if (tab === 'standing') { const sEl = document.getElementById('_autoStandingInner'); if (sEl && typeof compStanding === 'function') compStanding(sEl); }
 }
 function _logisticsFinLog() { if (typeof compFinance === 'function') { const el = document.querySelector('.comp-body'); if (el) compFinance(el, false); } }
 
@@ -13004,8 +13005,10 @@ const ADMIN_MAX_LOG=500;
 function adminLog(type,msg,data){
   _adminLog.unshift({ts:Date.now(),type,msg,data:data||null,user:currentUser||'—'});
   if(_adminLog.length>ADMIN_MAX_LOG)_adminLog.pop();
-  saveAdminLog();
+  _debounceSaveAdminLog();
 }
+let _adminLogTimer=null;
+function _debounceSaveAdminLog(){if(_adminLogTimer)return;_adminLogTimer=setTimeout(()=>{_adminLogTimer=null;saveAdminLog()},30000)}
 async function saveAdminLog(){try{await storeSet('lx_admin_log',JSON.stringify(_adminLog.slice(0,300)),true)}catch(e){console.debug(e)}}
 async function loadAdminLog(){try{const r=await storeGet('lx_admin_log',true);if(r){const d=JSON.parse(r);if(Array.isArray(d))_adminLog.push(...d)}}catch(e){console.debug(e)}}
 const _origAddLog=addLog;

@@ -1212,7 +1212,7 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
 </div>
 
 <!-- ═══ MODAL ═══ -->
-<div class="mbg" id="mBg" style="display:none"><div class="mdl"><h3 id="mT"></h3><div id="mB"></div><button class="btn red full" style="margin-top:10px" onclick="closeMdl()">Abbrechen</button></div></div>
+<div class="mbg" id="mBg" style="display:none"><div class="mdl"><div style="display:flex;justify-content:space-between;align-items:center"><h3 id="mT"></h3><button class="comp-ico-btn accent" onclick="closeMdl()" style="flex-shrink:0" title="Schließen"><i class="ri-close-line"></i></button></div><div id="mB"></div><button class="btn red full" style="margin-top:10px" onclick="closeMdl()">Abbrechen</button></div></div>
 
 <!-- ═══ ALLIANCE TERMINAL ═══ -->
 <div id="alliancePanel" class="ally-panel">
@@ -1229,16 +1229,19 @@ input:disabled,.sl:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </div>
 
-<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build X66F3N</div>
+<div id="buildStamp" style="position:fixed;bottom:6px;left:12px;font-size:10px;font-family:var(--mono);color:rgba(52,212,153,.35);pointer-events:none;z-index:9999">Build XFN6W1</div>
 <script>(function(){
   if(window.storage) return;
   const BASE='/api/storage';
+  let _backoff=0;
   async function req(method,p,body){
+    if(Date.now()<_backoff)return null;
     const opts={method,headers:{'Content-Type':'application/json'}};
     if(window._lxSessionToken)opts.headers['X-Session']=window._lxSessionToken;
     if(body)opts.body=JSON.stringify(body);
     const r=await fetch(BASE+p,opts);
     if(r.status===404)return null;
+    if(r.status===429){_backoff=Date.now()+15000;console.warn('Storage: rate limited, pausing 15s');return null}
     if(!r.ok)throw new Error('Storage API: '+r.status);
     return r.json();
   }
