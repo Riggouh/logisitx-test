@@ -1,4 +1,5 @@
-// LogistiX — Build X5E8ET — 2026-04-13 12:07
+// LogistiX — Build X5OLTR — 2026-04-13 12:15
+window.BUILD_NUM='X5OLTR';
 function bindAll(){} // stub — concat makes everything global
 function unsafeHTML(s){return s}
 function render(h,el){if(el)el.innerHTML=typeof h==='string'?h:''}
@@ -1493,12 +1494,21 @@ async function _post(action,body){
       return _post('checkadmin',{});
     },
 
+    async adminLogin(pass){
+      const data=await _post('admin',{pass});
+      return data;
+    },
+
+    async adminChangePw(oldPass,newPass){
+      return _post('adminpw',{oldPass,newPass});
+    },
+
     async getUsers(){
-      return _post('getusers',{});
+      return _post('users',{});
     },
 
     async getAdminUsers(){
-      return _post('getadmins',{});
+      return _post('adminusers',{});
     },
 
     async addAdmin(user){
@@ -1631,6 +1641,16 @@ async function doLogin(){
     await saveUsers(users);try{adminLog('security','🔒 Passwort-Migration: '+sanitize(user))}catch(e){console.debug(e)}
   }
   await clearRateLimit(user);currentUser=user.toLowerCase();
+  // Auto-migrate: if server auth available but user only exists client-side, register on server + get token
+  if(window.serverAuth?.available){
+    try{
+      // Try registering (will fail silently if already exists — 409)
+      await window.serverAuth.register(u.user||user,u.email||'migrated@logistix.local',pass,u.question||'Passwort?',pass).catch(()=>{});
+      // Now login to get a session token
+      const srvRes=await window.serverAuth.login(user,pass);
+      if(srvRes.ok&&srvRes.token)console.log('✅ Server-Account migriert: '+user);
+    }catch(e){console.debug('Server migration:',e)}
+  }
   _authUI.clearMsg();try{adminLog('auth','🔑 Login: '+user)}catch(e){console.debug(e)}
   hideLoading();afterLogin(u);
 }
@@ -9362,7 +9382,7 @@ function _orderCard(o, accepted) {
 
     // ── Fahrzeuge ──
     if (activeVehs.length || approachVehs.length) {
-      h += sep;
+      h += '<div style="border-top:1px solid rgba(255,255,255,.06)"></div>';
       h += '<div style="padding:6px 12px">';
       activeVehs.forEach(v => {
         let vPct = Math.round((v.prog || 0) / (v.tn || 1) * 100);
@@ -9404,7 +9424,7 @@ function _orderCard(o, accepted) {
     let penPctC = o.deliverTl ? Math.min(penAge / o.deliverTl, 1) : 0;
     let penalty = Math.floor((o.origRew || o.rew) * (PENALTY_BASE + penPctC * PENALTY_SCALE));
 
-    h += sep;
+    h += '<div style="border-top:1px solid rgba(255,255,255,.06)"></div>';
     h += '<div style="padding:6px 12px 10px;display:flex;gap:4px;flex-wrap:wrap">';
     h += '<button class="btn sm" style="flex:2;height:34px;font-size:12px;background:rgba(61,214,140,.12);color:var(--a);border-color:rgba(61,214,140,.3)" onclick="autoAssign(\'' + o.id + '\');ren()">\u26a1 Senden' + (freeV||soonV ? ' (\ud83d\ude9b'+freeV+(soonV?'+'+soonV:'')+')':'') + '</button>';
     h += '<button class="btn sm" style="flex:2;height:34px;font-size:12px" onclick="shAsgn(\'' + o.id + '\')">\ud83d\ude9b Zuweisen</button>';
@@ -14684,7 +14704,7 @@ document.dispatchEvent(new Event('lxReady'));
 
 // Set build version tags
 (function(){
-  const v='v2.2 #'+(window.BUILD_NUM||'?');
+  const v='v2.2 · '+window.BUILD_NUM;
   const el1=document.getElementById('loginVer');if(el1)el1.textContent=v;
   const el2=document.getElementById('verTag');if(el2)el2.textContent=v;
 })();
